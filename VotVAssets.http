@@ -1,0 +1,6 @@
+@VotVAssets_HostAddress = http://localhost:5130
+
+GET {{VotVAssets_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
