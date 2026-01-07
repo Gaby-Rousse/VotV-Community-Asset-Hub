@@ -1,12 +1,11 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthorization();
-builder.Services.AddIdentity<IdentityUser,IdentityRole>(options => {
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+    {
         options.SignIn.RequireConfirmedAccount = false;
         options.SignIn.RequireConfirmedEmail = false;
         options.Password.RequiredLength = 8;
@@ -19,16 +18,25 @@ builder.Services.AddIdentity<IdentityUser,IdentityRole>(options => {
 
 // Add services to the container.
 
+
 builder.Services.AddControllers();
 
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
-    opt.UseSqlServer("Server=localhost;Database=VotVAssets;User Id=sa;Password=rDL2AxiHdEPMJHPOeK2K40EZSqvo2IHMnbZzduXf4pPqIhT0Y8;TrustServerCertificate=True;"));
+    opt.UseSqlServer(
+        "Server=localhost;Database=VotVAssets;User Id=sa;Password=rDL2AxiHdEPMJHPOeK2K40EZSqvo2IHMnbZzduXf4pPqIhT0Y8;TrustServerCertificate=True;"));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    if (!await roleManager.RoleExistsAsync("Admin")) await roleManager.CreateAsync(new IdentityRole("Admin"));
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -37,7 +45,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+@import "tailwindcss";
+
+
+@font-face {
+    font-family: 'fsex300';
+    src: url("fonts/FSEX300.ttf");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@layer base {
+    html, body {
+        font-family: "Share Tech Mono", monospace;
+        color: white;
+    }
+}
+
+html {
+    background-image: url("https://votvbroadcast.com/images/bg.png");
+    background-attachment: fixed;
+    background-size: cover;
+}
+
+nav {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+a {
+    text-align: center;
+}
+
+.home {
+    border: 3px solid #04a96c;
+    background-color: black;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.home:hover {
+    background-color: #006741;
+    color: #c1bebe;
+    cursor: pointer;
+}
+
+nav a {
+
+    border: 3px solid #04a96c;
+    background-color: black;
+    transition: background-color 0.2s, color 0.2s;
+    z-index: 1000;
+}
+
+nav a:hover {
+    background-color: #006741;
+    color: #c1bebe;
+    cursor: pointer;
+}
+
+.title {
+    text-shadow: #8a8a8a 1.3px 1.3px 8px, #8a8a8a -1.3px -1.3px 8px;
+}
+
+.subtitle {
+    text-shadow: #04AA6D 1.3px 1.3px 8px, #04AA6D -1.3px -1.3px 8px;
+}
+
+.computerButton {
+    font-family: fsex300, serif;
+    border-color: #F8FE50;
+    color: #F8FE50
+}
+
+.url:hover {
+    color: #50eafe;
+}
+
+.dos {
+    font-family: fsex300, serif;
+    color: #F8FE50
+}
+
+.red {
+    color: #fe5050;
+    border-color: #fe5050;
+}
+
+.purple {
+    color: #FF00DC;
+    border-color: #FF00DC;
+}
+
+.selected {
+    border-color: #50eafe;
+    color: #50eafe
+}
+
+
+

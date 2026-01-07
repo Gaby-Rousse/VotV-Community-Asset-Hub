@@ -1,19 +1,19 @@
-using Microsoft.EntityFrameworkCore;
-using VotVAssets.Models;
-namespace VotVAssets.Models;
-
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+
+namespace VotVAssets.Models;
 
 public class ApplicationDbContext : IdentityDbContext<IdentityUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) :
         base(options)
-    { } 
+    {
+    }
+
     public DbSet<Asset> Assets { get; set; } = null!;
-    public DbSet<Author> Authors { get; set; } = null!;
-    
+    public DbSet<Artist> Artists { get; set; } = null!;
+
     public override int SaveChanges()
     {
         AddTimestamps();
@@ -35,10 +35,7 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
         {
             var now = DateTime.UtcNow; // current datetime
 
-            if (entity.State == EntityState.Added)
-            {
-                ((Timestamp)entity.Entity).CreatedAt = now;
-            }
+            if (entity.State == EntityState.Added) ((Timestamp)entity.Entity).CreatedAt = now;
             ((Timestamp)entity.Entity).UpdatedAt = now;
         }
     }

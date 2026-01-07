@@ -8,7 +8,7 @@ public enum ItemEnum
     Sticker,
     Poster,
     Model,
-    Atv,
+    Atv
 }
 
 public enum TypeEnum
@@ -18,24 +18,30 @@ public enum TypeEnum
     Vertical,
     Table
 }
+
 public class Asset : Timestamp
 {
     public long Id { get; set; }
+
+    required
+        public long OwnerId { get; set; }
+
     required
         public long AuthorId { get; set; }
+
     required
-        public string Name {get; set;}
-    
+        public string Name { get; set; }
+
     required
         public string Filename { get; set; }
-    
-    required 
-        public ItemEnum Item {get; set;}
-    
-    public string? Description {get; set;}
-    public string? Thumbnail {get; set;}
+
+    required
+        public ItemEnum Item { get; set; }
+
+    public string? Description { get; set; }
+    public string? Thumbnail { get; set; }
     public string? Source { get; set; }
-    
-    public string[]?  Tags {get; set;}
-    public TypeEnum? Type {get; set;}
+
+    public string[]? Tags { get; set; }
+    public TypeEnum? Type { get; set; }
 }
