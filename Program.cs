@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
 
+//https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-10.0
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthorization();
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -18,6 +21,15 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 
 // Add services to the container.
 
+builder.Services.AddCors(options =>
+{
+    //archi gossant
+    options.AddPolicy(MyAllowSpecificOrigins,
+        policy =>
+        {
+            policy.WithOrigins("http://10.0.0.131:5173").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+        });
+});
 
 builder.Services.AddControllers();
 
@@ -46,6 +58,10 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
+
+
+app.UseCors(MyAllowSpecificOrigins);
+
 
 app.UseAuthentication();
 app.UseAuthorization();

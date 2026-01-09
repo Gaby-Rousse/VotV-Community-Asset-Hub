@@ -97,5 +97,14 @@ nav a:hover {
     color: #50eafe
 }
 
+input:focus, textarea:focus {
+    border-color: #50eafe;
+    color: #50eafe;
+    outline: none;
+    box-shadow: none;
+}
 
+.url:hover {
+    color: #50eafe;
+}
 

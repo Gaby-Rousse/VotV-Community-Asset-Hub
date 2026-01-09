@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {useAuth} from '~/context/AuthContext';
+import {apiCall} from "~/routes/functions";
 
 
 enum ItemEnum {
@@ -135,16 +136,17 @@ export function ComputerButton({text, selectedButton, setSelectedButton}: {
     )
 }
 
+//https://dev.to/elfrontend/how-to-fetch-data-in-react-5-methods-compared-55nf
+//apiCall c'est un fetch fancy
 function FetchAssets({item}: {
     item: number,
 }) {
     const [assets, setAssets] = useState<Asset[]>([]);
 
     useEffect(() => {
-        fetch("http://10.0.0.131:5130/api/Asset?item=" + item)
-            .then((res) => res.json())
-            .then((data) => setAssets(data))
-            .catch((err) => console.error("Error:", err));
+        apiCall("http://10.0.0.131:5130/api/Assets?item=" + item, null).then(res => res.json())
+            .then(data => setAssets(data))
+            .catch(err => console.error('Failed to fetch assets:', err));
     }, [item]);
 
     return (
@@ -159,19 +161,16 @@ function FetchAssets({item}: {
 }
 
 function FetchArtists() {
-    const [assets, setAssets] = useState<Asset[]>([]);
+    const [artists, setArtists] = useState<Asset[]>([]);
 
     useEffect(() => {
-        fetch("http://10.0.0.131:5130/api/Asset")
-            .then((res) => res.json())
-            .then((data) => setAssets(data))
-            .catch((err) => console.error("Error:", err));
+        apiCall("http://10.0.0.131:5130/api/Artists", null)
     }, []);
 
     return (
         <>
             <ul>
-                {assets.map((a) => (
+                {artists.map((a) => (
                     <li key={a.id}>{a.name}</li>
                 ))}
             </ul>

@@ -4,6 +4,7 @@ using VotVAssets.Models;
 
 namespace VotVAssets.Controllers;
 
+//https://www.c-sharpcorner.com/article/net-api-login-and-registration-using-identity/
 [Route("api/[controller]")]
 [ApiController]
 public class AccountsController : ControllerBase
@@ -24,7 +25,7 @@ public class AccountsController : ControllerBase
 
         var username = model.Username.Trim().Replace(' ', '_');
         var existingUser = await _userManager.FindByNameAsync(username);
-        if (existingUser != null) return BadRequest(new { error = "Username already taken" });
+        if (existingUser != null) return ValidationProblem("Username already taken");
         var user = new IdentityUser { UserName = username, Email = model.Email };
         var result = await _userManager.CreateAsync(user, model.Password);
         if (result.Succeeded) return Ok("Registration successful");
@@ -50,5 +51,12 @@ public class AccountsController : ControllerBase
                 Username = User.Identity.Name
             });
         return Ok(new { IsAuthenticated = false });
+    }
+
+    [HttpGet("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        await _signInManager.SignOutAsync();
+        return Ok();
     }
 }

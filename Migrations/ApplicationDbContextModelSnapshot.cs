@@ -249,7 +249,7 @@ namespace VotVAssets.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Authors");
+                    b.ToTable("Artists");
                 });
 
             modelBuilder.Entity("VotVAssets.Models.Asset", b =>
