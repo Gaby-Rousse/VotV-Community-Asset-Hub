@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {Link, useNavigate} from "react-router";
 import {apiCall} from "~/routes/functions";
 import {useAuth} from "~/context/AuthContext";
@@ -28,7 +28,9 @@ export default function login() {
     }, [visibleCount]);
 
     //https://react.dev/reference/react-dom/components/form
-    async function handleSubmit(formData: FormData) {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+
+        let formData = new FormData(e.currentTarget);
 
         let username = formData.get("username")?.toString() ?? "";
         setPreviousValue({...previousValue, username: username})
@@ -47,7 +49,7 @@ export default function login() {
 
     return (
         <>
-            <form action={handleSubmit}
+            <form onSubmit={handleSubmit}
                   className="bg-black flex h-screen w-screen">
                 <div className="ml-1 mt-auto flex flex-col">
                     <Line visibleCount={visibleCount} requiredCount={1}>

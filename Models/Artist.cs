@@ -3,6 +3,7 @@ namespace VotVAssets.Models;
 public class Artist : Timestamp
 {
     public long Id { get; set; }
+    public string? OwnerId { get; set; }
 
     required
         public string Name { get; set; }
@@ -12,6 +13,6 @@ public class Artist : Timestamp
     public string? Pfp { get; set; }
 
     public string PfpUrl => string.IsNullOrEmpty(Pfp)
-        ? "/default.png"
-        : $"http://url/uploads/avatars/{Pfp}";
+        ? "http://10.0.0.131:5130/uploads/avatars/default.png"
+        : $"http://10.0.0.131:5130/uploads/avatars/{Pfp}";
 }

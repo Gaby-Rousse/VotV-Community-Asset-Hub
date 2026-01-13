@@ -70,4 +70,6 @@ app.MapControllers();
 
 //app.MapIdentityApi<IdentityUser>();
 
+app.UseStaticFiles();
+
 app.Run();

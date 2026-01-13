@@ -238,6 +238,9 @@ namespace VotVAssets.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Pfp")
                         .HasColumnType("nvarchar(max)");
 
@@ -260,7 +263,7 @@ namespace VotVAssets.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<long>("AuthorId")
+                    b.Property<long>("ArtistId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
@@ -280,8 +283,8 @@ namespace VotVAssets.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long>("OwnerId")
-                        .HasColumnType("bigint");
+                    b.Property<string>("OwnerId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Source")
                         .HasColumnType("nvarchar(max)");

@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {useAuth} from '~/context/AuthContext';
 import {apiCall} from "~/routes/functions";
@@ -50,6 +50,15 @@ interface Asset {
     type?: TypeEnum;
 }
 
+interface Artist {
+    id: number;
+    name: string;
+    description?: string;
+    socials?: string[];
+    pfp?: string;
+    pfpUrl?: string;
+}
+
 
 export default function Assets() {
 
@@ -70,7 +79,7 @@ export default function Assets() {
                         selectedButton === "Artists" ? (<FetchArtists/>) : (
                             <FetchAssets item={labelDictionary[selectedButton]}/>)
                     ) :
-                    (selectedButton === "Artists" ? (<CreateArtist/>) : (
+                    (selectedButton === "Artists" ? (<CreateArtist setIsNavigating={setIsNavigating}/>) : (
                             <CreateAsset item={labelDictionary[selectedButton]}/>)
                     )
                 }
@@ -161,19 +170,35 @@ function FetchAssets({item}: {
 }
 
 function FetchArtists() {
-    const [artists, setArtists] = useState<Asset[]>([]);
+    const [artists, setArtists] = useState<Artist[]>([]);
 
     useEffect(() => {
-        apiCall("http://10.0.0.131:5130/api/Artists", null)
+        apiCall("http://10.0.0.131:5130/api/Artists", null).then(res => res.json())
+            .then(data => setArtists(data))
+            .catch(err => console.error('Failed to fetch assets:', err));
     }, []);
 
     return (
         <>
-            <ul>
+            <div className="flex flex-col">
                 {artists.map((a) => (
-                    <li key={a.id}>{a.name}</li>
+                    <div key={a.id} className="flex flex-row gap-1 border-b">
+                        <img className="w-25 h-25 border-r" src={a.pfpUrl} alt="Avatar"/>
+                        <div className="flex flex-col gap-3">
+                            <div className="dos">{a.name}</div>
+                            <div className="dos overflow-y-auto">{a.description}</div>
+                        </div>
+
+                        <div className="flex flex-row gap-1 ml-auto mb-1 mr-1 mt-auto">
+                            <button className="dos px-6 py-1 border-2">Delete</button>
+                            <button className="dos px-6 py-1 border-2">Edit</button>
+                            <button className="dos px-6 py-1 border-2">See assets from them</button>
+
+                        </div>
+
+                    </div>
                 ))}
-            </ul>
+            </div>
         </>
     );
 }
@@ -188,10 +213,102 @@ function CreateAsset({item}: {
     );
 }
 
-function CreateArtist() {
+function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => void }) {
+    const [socials, setSocials] = useState<string[]>([]);
+    const [preview, setPreview] = useState<string>("https://www.babelchat.iblr.ca/images/defaultPicture.jpg")
+
+    const addField = () => {
+        if (socials.length < 6)
+            setSocials([...socials, ""]);
+    };
+
+    const removeField = (index: number) => {
+        setSocials(socials.filter((_, i) => i !== index));
+    }
+
+    const handleInputChange = (index: number, value: string) => {
+        const newSocials = [...socials];
+        newSocials[index] = value;
+        setSocials(newSocials);
+    };
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.currentTarget);
+
+        let trimmedSocials = socials.map(s => s.trim());
+        if (trimmedSocials.length > 0) {
+            trimmedSocials.forEach(social => {
+                formData.append("socials[]", social);
+            });
+        }
+
+        let response = await apiCall("http://10.0.0.131:5130/api/Artists", formData);
+        if (response.ok) {
+            setIsNavigating(true);
+        } else {
+            alert("Error");
+        }
+    };
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+
+        if (file) {
+            const imageUrl = URL.createObjectURL(file);
+            setPreview(imageUrl);
+        }
+    };
+
     return (
         <>
-            <h2>Adding an artist!</h2>
+            <form encType="multipart/form-data"
+                  className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120"
+                  onSubmit={handleSubmit}>
+                <div className="dos">Adding an artist</div>
+                <hr></hr>
+                <div>
+                    <div className="flex flex-row">
+                        <div className="text-center w-full dos">Informations</div>
+                        <div className="text-center ml-auto w-36 dos">Avatar</div>
+                    </div>
+                    <div className="flex flex-row gap-2">
+                        <div className="flex flex-col gap-1 w-full">
+                            <input name="name" className="w-full h-6 border dos  text-center" type="text"
+                                   placeholder="Username"/>
+                            <textarea name="description" className="w-full h-full border dos  text-center"
+                                      placeholder="Description"/>
+                        </div>
+                        <div className="relative w-28 h-28 shrink-0 ml-auto border">
+                            <input onChange={handleImageChange} accept="image/*"
+                                   className="absolute h-full opacity-0  w-full" type="file"
+                                   name="avatar"/>
+                            <img src={preview} className="pointer-events-none absolute border w-full h-full"
+                                 alt="bleeh"/>
+                        </div>
+
+                    </div>
+                </div>
+                <div className="flex flex-row mx-auto gap-1">
+                    <div className="dos">Socials</div>
+                    <button type="button" onClick={addField} className="dos hover:cursor-pointer">[+]</button>
+                </div>
+                <div className="flex flex-col gap-1">
+                    {socials.map((link, index) => (
+                        <div className="flex flex-row gap-1 w-full">
+                            <input type="text" className="dos w-full text-center border"
+                                   placeholder="Enter social link..."
+                                   value={link} onChange={(e) => handleInputChange(index, e.target.value)}/>
+                            <button type="button" onClick={() => removeField(index)}
+                                    className="dos hover:cursor-pointer">[-]
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                <button type="submit" className="border mt-3 dos">Submit!</button>
+
+            </form>
         </>
     );
 }

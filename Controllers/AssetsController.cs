@@ -21,8 +21,8 @@ public class AssetsController : ControllerBase
     public async Task<ActionResult<IEnumerable<Asset>>> GetAssets(
         ItemEnum? Item = null,
         TypeEnum? Type = null,
-        long? OwnerId = null,
-        long? AuthorId = null,
+        string? OwnerId = null,
+        long? ArtistId = null,
         string? Name = null)
     {
         var query = _context.Assets.AsQueryable();
@@ -31,10 +31,10 @@ public class AssetsController : ControllerBase
             query = query.Where(a => a.Item == Item.Value);
         if (Type.HasValue)
             query = query.Where(a => a.Type == Type.Value);
-        if (OwnerId.HasValue)
-            query = query.Where(a => a.OwnerId == OwnerId.Value);
-        if (AuthorId.HasValue)
-            query = query.Where(a => a.AuthorId == AuthorId.Value);
+        if (OwnerId != null)
+            query = query.Where(a => a.OwnerId == OwnerId);
+        if (ArtistId.HasValue)
+            query = query.Where(a => a.ArtistId == ArtistId.Value);
         if (!string.IsNullOrEmpty(Name))
             query = query.Where(a => a.Name.Contains(Name));
 

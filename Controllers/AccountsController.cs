@@ -18,8 +18,9 @@ public class AccountsController : ControllerBase
         _signInManager = signInManager;
     }
 
+
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterModel model)
+    public async Task<IActionResult> Register([FromForm] RegisterModel model)
     {
         if (model.Password != model.ConfirmPassword) return ValidationProblem("Passwords do not match");
 
@@ -33,7 +34,7 @@ public class AccountsController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginModel model)
+    public async Task<IActionResult> Login([FromForm] LoginModel model)
     {
         var username = model.Username.Trim().Replace(' ', '_');
         var result = await _signInManager.PasswordSignInAsync(username, model.Password, false, false);

@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router";
 import {apiCall} from "~/routes/functions";
 import {Line} from "./login";
@@ -26,7 +26,10 @@ export default function account() {
     }, [visibleCount]);
 
     //https://react.dev/reference/react-dom/components/form
-    async function handleSubmit(formData: FormData) {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        
+        let formData = new FormData(e.currentTarget);
         let option = parseInt(formData.get("Option")?.toString() ?? "")
 
         if (option == 1) {
@@ -41,7 +44,7 @@ export default function account() {
 
     return (
         <>
-            <form action={handleSubmit}
+            <form onSubmit={handleSubmit}
                   className="bg-black flex h-screen w-screen">
                 <div className="ml-1 mt-auto flex flex-col">
                     <Line visibleCount={visibleCount} requiredCount={1}>

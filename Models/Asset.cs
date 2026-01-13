@@ -24,10 +24,10 @@ public class Asset : Timestamp
     public long Id { get; set; }
 
     required
-        public long OwnerId { get; set; }
+        public string? OwnerId { get; set; }
 
     required
-        public long AuthorId { get; set; }
+        public long ArtistId { get; set; }
 
     required
         public string Name { get; set; }

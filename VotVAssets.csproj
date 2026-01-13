@@ -137,7 +137,6 @@
 
     <ItemGroup>
         <Folder Include="Frontend\app\fonts\"/>
-        <Folder Include="Frontend\public\uploads\"/>
         <Folder Include="Migrations\ApplicationDb\"/>
     </ItemGroup>
 
