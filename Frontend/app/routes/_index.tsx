@@ -71,8 +71,8 @@ export function Nav() {
                         <Link className="mx-auto p-2 w-36" to="/assets">Assets</Link>
                         {
                             isAuthenticated ? (
-                                <Link className="mt-auto mb-auto p-2  w-28" to="/account">Account</Link>) : (
-                                <Link className="mt-auto mb-auto p-2  w-28" to="/login">Login</Link>)
+                                <Link className="mx-auto p-2  w-36" to="/account">Account</Link>) : (
+                                <Link className="mx-auto p-2  w-36" to="/login">Login</Link>)
                         }
                     </div>
                 </div>

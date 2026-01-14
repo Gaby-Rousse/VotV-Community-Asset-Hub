@@ -22,11 +22,12 @@ public class AccountsController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromForm] RegisterModel model)
     {
-        if (model.Password != model.ConfirmPassword) return ValidationProblem("Passwords do not match");
+        if (model.Password != model.ConfirmPassword)
+            return BadRequest(new { error = "Password confirmation invalid." });
 
         var username = model.Username.Trim().Replace(' ', '_');
         var existingUser = await _userManager.FindByNameAsync(username);
-        if (existingUser != null) return ValidationProblem("Username already taken");
+        if (existingUser != null) return BadRequest(new { error = "Username already taken." });
         var user = new IdentityUser { UserName = username, Email = model.Email };
         var result = await _userManager.CreateAsync(user, model.Password);
         if (result.Succeeded) return Ok("Registration successful");
@@ -43,14 +44,25 @@ public class AccountsController : ControllerBase
     }
 
     [HttpGet("status")]
-    public IActionResult GetStatus()
+    public async Task<IActionResult> GetStatus()
     {
         if (User.Identity?.IsAuthenticated == true)
+        {
+            var currentUser = await _userManager.FindByNameAsync(User.Identity.Name);
+
+            if (currentUser == null) return Ok(new { IsAuthenticated = false });
+
+            var isAdmin = await _userManager.IsInRoleAsync(currentUser, "Admin");
+
             return Ok(new
             {
                 IsAuthenticated = true,
-                Username = User.Identity.Name
+                Username = User.Identity.Name,
+                currentUser.Id,
+                IsAdmin = isAdmin
             });
+        }
+
         return Ok(new { IsAuthenticated = false });
     }
 

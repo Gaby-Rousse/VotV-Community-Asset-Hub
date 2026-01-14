@@ -1,9 +1,9 @@
-export async function apiCall(url: string, formData: FormData | null): Promise<any> {
+export async function apiCall(url: string, formData: FormData | null, method: string = "POST"): Promise<any> {
 
     if (formData != null) {
         return await fetch(url, {
             credentials: "include",
-            method: "POST",
+            method: method,
             body: formData,
         });
     } else {

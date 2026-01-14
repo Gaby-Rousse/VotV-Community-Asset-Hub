@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
 
@@ -37,6 +38,19 @@ builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(
         "Server=localhost;Database=VotVAssets;User Id=sa;Password=rDL2AxiHdEPMJHPOeK2K40EZSqvo2IHMnbZzduXf4pPqIhT0Y8;TrustServerCertificate=True;"));
 
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var firstError = context.ModelState
+            .Where(x => x.Value.Errors.Count > 0)
+            .Select(x => x.Value.Errors.First().ErrorMessage)
+            .FirstOrDefault() ?? "Validation failed";
+
+        return new BadRequestObjectResult(new { error = firstError });
+    };
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -71,5 +85,12 @@ app.MapControllers();
 //app.MapIdentityApi<IdentityUser>();
 
 app.UseStaticFiles();
+
+//Step 3: https://medium.com/@roshanj100/users-and-roles-seeding-in-asp-net-core-identity-with-entity-framework-core-a-step-by-step-guide-28e6f76a18db
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await IdentitySeeder.SeedRolesAndAdminAsync(services);
+}
 
 app.Run();

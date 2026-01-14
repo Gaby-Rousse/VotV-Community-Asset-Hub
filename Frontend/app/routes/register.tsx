@@ -1,11 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {Link, useNavigate} from "react-router";
-import {apiCall} from "~/routes/functions";
+import {apiCall} from "~/tsx/functions";
 import {useAuth} from "~/context/AuthContext";
+import {Line} from "./login";
 
-export default function login() {
+export default function register() {
     const [visibleCount, setVisibleCount] = useState(0);
-    const [previousValue, setPreviousValue] = useState({username: ""});
     const [error, setError] = useState("");
     //https://reactrouter.com/start/declarative/navigating#usenavigate
     const navigate = useNavigate();
@@ -29,11 +29,10 @@ export default function login() {
 
     //https://react.dev/reference/react-dom/components/form
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
 
         let formData = new FormData(e.currentTarget);
-
-        let username = formData.get("username")?.toString() ?? "";
-        setPreviousValue({...previousValue, username: username})
+        formData.set("email", "nope")
 
 
         let response = await apiCall("http://10.0.0.131:5130/api/Accounts/register", formData);
@@ -41,9 +40,9 @@ export default function login() {
             navigate("/login");
             refreshAuth();
         } else {
-            let error = await response.json();
-            console.log(error.detail)
-            setError(error.detail);
+            let parsedResponse = await response.json();
+            console.log(parsedResponse);
+            setError(parsedResponse.error);
         }
     }
 
@@ -70,7 +69,7 @@ export default function login() {
                     <Line visibleCount={visibleCount} requiredCount={3}>
                         <div className="flex flex-row gap-1">
                             <div className="dos">Username:</div>
-                            <input name="username" defaultValue={previousValue.username} type="text" className="dos"/>
+                            <input name="username" type="text" className="dos"/>
                         </div>
                     </Line>
                     <Line visibleCount={visibleCount} requiredCount={4}>
@@ -101,15 +100,5 @@ export default function login() {
 
         </>
     );
-}
-
-export function Line({visibleCount, requiredCount, children}: {
-    visibleCount: number,
-    requiredCount: number,
-    children: any
-}) {
-    return (
-        visibleCount >= requiredCount ? (children) : ('')
-    )
 }
 

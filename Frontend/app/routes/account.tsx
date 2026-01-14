@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router";
-import {apiCall} from "~/routes/functions";
+import {apiCall} from "~/tsx/functions";
 import {Line} from "./login";
 import {useAuth} from "~/context/AuthContext";
 
@@ -28,7 +28,7 @@ export default function account() {
     //https://react.dev/reference/react-dom/components/form
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
-        
+
         let formData = new FormData(e.currentTarget);
         let option = parseInt(formData.get("Option")?.toString() ?? "")
 

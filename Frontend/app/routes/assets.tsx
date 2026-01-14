@@ -1,8 +1,21 @@
 import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {useAuth} from '~/context/AuthContext';
-import {apiCall} from "~/routes/functions";
-
+import {apiCall} from "~/tsx/functions";
+import {
+    FaArtstation,
+    FaDeviantart,
+    FaFacebookF,
+    FaGithub,
+    FaInstagram,
+    FaReddit,
+    FaTumblr,
+    FaTwitch,
+    FaYoutube
+} from "react-icons/fa";
+import {FaBluesky, FaPixiv, FaXTwitter} from "react-icons/fa6";
+import {GiBattleTank} from "react-icons/gi";
+import {CiGlobe} from "react-icons/ci";
 
 enum ItemEnum {
     Rug = 0,
@@ -52,6 +65,7 @@ interface Asset {
 
 interface Artist {
     id: number;
+    ownerId: string;
     name: string;
     description?: string;
     socials?: string[];
@@ -61,11 +75,12 @@ interface Artist {
 
 
 export default function Assets() {
-
     const [selectedButton, setSelectedButton] = useState("3D Models");
     const [isNavigating, setIsNavigating] = useState(true);
-    const {isAuthenticated} = useAuth();
+    const {isAuthenticated, id, isAdmin} = useAuth();
+    const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const toggleNavigating = () => {
+        setSelectedArtist(null);
         setIsNavigating(!isNavigating);
     };
 
@@ -76,10 +91,14 @@ export default function Assets() {
                      selectedButton={selectedButton}
                      setSelectedButton={setSelectedButton}></Nav>
                 {isNavigating ? (
-                        selectedButton === "Artists" ? (<FetchArtists/>) : (
+                        selectedButton === "Artists" ? (
+                            <FetchArtists setSelectedArtist={setSelectedArtist} setIsNavigating={setIsNavigating}/>) : (
                             <FetchAssets item={labelDictionary[selectedButton]}/>)
                     ) :
-                    (selectedButton === "Artists" ? (<CreateArtist setIsNavigating={setIsNavigating}/>) : (
+                    (selectedButton === "Artists" ? (
+                            <ArtistForm key={selectedArtist?.id ?? "new-artist"} setIsNavigating={setIsNavigating}
+                                        setSelectedArtist={setSelectedArtist}
+                                        artist={selectedArtist}/>) : (
                             <CreateAsset item={labelDictionary[selectedButton]}/>)
                     )
                 }
@@ -169,38 +188,239 @@ function FetchAssets({item}: {
     );
 }
 
-function FetchArtists() {
+async function FetchArtist(id: number): Promise<Artist> {
+    const response = await apiCall(`http://10.0.0.131:5130/api/Artists/${id}`, null);
+    const data = await response.json();
+    return data;
+}
+
+function ShowArtist({id, setId}: { id: number, setId: (value: number) => void }) {
+    const [artist, setArtist] = useState<Artist | null>();
+    useEffect(() => {
+        FetchArtist(id).then(data => setArtist(data));
+    }, [id]);
+
+    return (
+        <>
+            <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 bg-black/50 z-10 ">
+
+                <div
+                    className="flex flex-col mx-auto my-auto w-full h-full sm:w-2/3 sm:h-2/3 bg-black border-2 overflow-hidden">
+                    <div className="flex shrink-0 w-full gap-2 h-28 border-b-2 flex-row">
+                        <img className="border-r-2 w-28 h-full object-cover" alt="avatar" src={artist?.pfpUrl}/>
+                        <div className="dos text-3xl my-auto">{artist?.name}</div>
+                        <button onClick={() => setId(0)}
+                                className="dos border hover:cursor-pointer size-8 ml-auto mb-auto m-1"
+                                type="button">
+                            <img src="https://votvbroadcast.com/images/cross.png"/>
+                        </button>
+                    </div>
+
+                    <div className="flex flex-1 flex-col p-1 min-h-0">
+                        <div className="flex flex-col min-h-0 flex-1 mb-4">
+                            <div className="dos shrink-0">Description:</div>
+                            <div className="dos overflow-y-auto">
+                                {artist?.description}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col min-h-0 flex-1">
+                            <div className="dos shrink-0">Socials:</div>
+                            <div className="flex-col flex overflow-y-auto">
+                                {artist?.socials?.map((social) => {
+                                    return <GenerateSocial url={social} key={social}/>
+                                })}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+            </div>
+        </>
+    )
+}
+
+function DeleteArtist({id, setId, setDeleteArtist, setTrigger}: {
+    id: number,
+    setId: (value: number) => void,
+    setDeleteArtist: (value: boolean) => void,
+    setTrigger: (value: number) => void
+}) {
+    const [artist, setArtist] = useState<Artist | null>();
+    useEffect(() => {
+        FetchArtist(id).then(data => setArtist(data));
+    }, [id]);
+
+    async function sendDelete(id: number) {
+        let response = await apiCall(`http://10.0.0.131:5130/api/Artists/${id}`, new FormData(), "DELETE");
+        if (response.ok) {
+            setDeleteArtist(false)
+            setId(0)
+            setTrigger(Date.now());
+        } else {
+            alert("idk man")
+        }
+    }
+
+
+    return (
+        <>
+            <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 bg-black/50 z-10 ">
+                <div className="flex flex-col mx-auto p-3 my-auto w-full h-full sm:w-1/3 sm:h-1/3 bg-black border-2">
+                    <div className="text-center text-2xl   dos">Are you sure you want to
+                        delete <br/>[{artist?.name}]
+                        <br/> ?
+                    </div>
+                    <div className="dos red text-center mt-auto mb-auto text-xl">If you delete this artist, all assets
+                        assigned to
+                        them
+                        will also be
+                        deleted
+                    </div>
+                    <div className="flex w-full justify-between mt-auto flex-row">
+                        <button onClick={() => {
+                            setDeleteArtist(false);
+                            setId(0)
+                        }} className="dos url hover:cursor-pointer border py-2 px-5 text-2xl">
+                            Cancel
+                        </button>
+                        <button onClick={async () => await sendDelete(id)}
+                                className="dos hover:cursor-pointer url border py-2 px-5 text-2xl">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+}
+
+
+function GenerateSocial({url}: { url: string }) {
+    let lowUrl = url.toLowerCase()
+    let social = <a className="flex flex-row gap-1 dos"></a>
+    if (lowUrl.includes("github.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaGithub className="dos my-auto"/>GitHub</a>
+    else if (lowUrl.includes("deviantart.com"))
+        social = <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaDeviantart
+            className="dos my-auto"/>DeviantArt</a>
+    else if (lowUrl.includes("bsky.app"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaBluesky className="dos my-auto"/>BlueSky</a>
+    else if (lowUrl.includes("x.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaXTwitter className="dos my-auto"/>Twitter</a>
+    else if (lowUrl.includes("tumblr.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaTumblr className="dos my-auto"/>Tumblr</a>
+    else if (lowUrl.includes("facebook.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaFacebookF className="dos my-auto"/>Facebook</a>
+    else if (lowUrl.includes("reddit.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaReddit className="dos my-auto"/>Reddit</a>
+    else if (lowUrl.includes("newgrounds.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><GiBattleTank
+                className="dos my-auto"/>NewGrounds</a>
+    else if (lowUrl.includes("youtube.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaYoutube className="dos my-auto"/>YouTube</a>
+    else if (lowUrl.includes("pixiv.net"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaPixiv className="dos my-auto"/>Pixiv</a>
+    else if (lowUrl.includes("twitch.tv"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaTwitch className="dos my-auto"/>Twitch</a>
+    else if (lowUrl.includes("instagram.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaInstagram className="dos my-auto"/>Instagram</a>
+    else if (lowUrl.includes("artstation.com"))
+        social =
+            <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><FaArtstation
+                className="dos my-auto"/>ArtStation</a>
+    else
+        social = <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><CiGlobe
+            className="dos my-auto"/>{url}</a>
+    return social
+}
+
+function FetchArtists({setSelectedArtist, setIsNavigating}: {
+    setSelectedArtist: (artist: Artist | null) => void,
+    setIsNavigating: (value: boolean) => void
+}) {
+    const {isAuthenticated, id, isAdmin} = useAuth();
     const [artists, setArtists] = useState<Artist[]>([]);
+    const [artistId, setArtistId] = useState(0);
+    const [deleteArtist, setDeleteArtist] = useState(false);
+    const [trigger, setTrigger] = useState(0);
 
     useEffect(() => {
         apiCall("http://10.0.0.131:5130/api/Artists", null).then(res => res.json())
             .then(data => setArtists(data))
-            .catch(err => console.error('Failed to fetch assets:', err));
-    }, []);
+            .catch(err => console.error('Failed to fetch artists:', err));
+    }, [trigger]);
 
     return (
         <>
+            {artistId != 0 ? (deleteArtist ? (
+                <DeleteArtist id={artistId} setId={setArtistId} setDeleteArtist={setDeleteArtist}
+                              setTrigger={setTrigger}/>) : (
+                <ShowArtist id={artistId} setId={setArtistId}/>)) : ("")}
             <div className="flex flex-col">
+                <div className="dos w-full purple text-center border-b">Click on an artist to see their socials and
+                    a
+                    description about them
+                </div>
                 {artists.map((a) => (
-                    <div key={a.id} className="flex flex-row gap-1 border-b">
-                        <img className="w-25 h-25 border-r" src={a.pfpUrl} alt="Avatar"/>
-                        <div className="flex flex-col gap-3">
-                            <div className="dos">{a.name}</div>
-                            <div className="dos overflow-y-auto">{a.description}</div>
+                        <div onClick={() => setArtistId(a.id)} key={a.id}
+                             className="flex flex-row gap-1 hover:cursor-pointer border-b">
+                            <img className="w-12 h-12 border-r" src={a.pfpUrl} alt="Avatar"/>
+                            <div className="flex flex-col gap-3">
+                                <div className="dos my-auto">{a.name}</div>
+                            </div>
+                            <div className="flex flex-row gap-1 ml-auto mr-1 my-auto">
+                                {isAuthenticated ? (isAdmin || id == a.ownerId ? (<>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setArtistId(a.id);
+                                                setDeleteArtist(true);
+                                            }}
+                                            className="dos hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                            <img className="size-6" src="https://votvbroadcast.com/images/trash.png"/>
+                                            <div className="hidden sm:flex">Delete</div>
+                                        </button>
+                                        <button onClick={(e) => {
+                                            e.stopPropagation();
+                                            FetchArtist(a.id).then(data => setSelectedArtist(data));
+                                            setIsNavigating(false);
+                                        }}
+                                                className="dos hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                            <img className="size-6" src="https://votvbroadcast.com/images/pencil.png"/>
+                                            <div className="hidden sm:flex">Edit</div>
+                                        </button>
+                                    </>) : ("")
+                                ) : ("")
+
+                                }
+                                <button
+                                    className="dos hidden hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                    <img className="size-6" src="https://votvbroadcast.com/images/eye.png"/>
+                                    <div className="hidden sm:flex">See assets from them</div>
+                                </button>
+                            </div>
+
+
                         </div>
-
-                        <div className="flex flex-row gap-1 ml-auto mb-1 mr-1 mt-auto">
-                            <button className="dos px-6 py-1 border-2">Delete</button>
-                            <button className="dos px-6 py-1 border-2">Edit</button>
-                            <button className="dos px-6 py-1 border-2">See assets from them</button>
-
-                        </div>
-
-                    </div>
-                ))}
+                    )
+                )}
             </div>
         </>
-    );
+    )
 }
 
 function CreateAsset({item}: {
@@ -213,12 +433,22 @@ function CreateAsset({item}: {
     );
 }
 
-function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => void }) {
-    const [socials, setSocials] = useState<string[]>([]);
-    const [preview, setPreview] = useState<string>("https://www.babelchat.iblr.ca/images/defaultPicture.jpg")
+function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
+    setIsNavigating: (bool: boolean) => void,
+    artist: Artist | null,
+    setSelectedArtist: (artist: Artist | null) => void
+}) {
+    const [socials, setSocials] = useState<string[]>(artist?.socials ?? []);
+    const [preview, setPreview] = useState<string>(artist?.pfpUrl ?? "http://10.0.0.131:5130/uploads/avatars/defaultPicture.png")
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        setSocials(artist?.socials ?? []);
+        setPreview(artist?.pfpUrl ?? "http://10.0.0.131:5130/uploads/avatars/defaultPicture.png");
+    }, [artist]);
 
     const addField = () => {
-        if (socials.length < 6)
+        if (socials.length < 10)
             setSocials([...socials, ""]);
     };
 
@@ -237,19 +467,35 @@ function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => v
 
         const formData = new FormData(e.currentTarget);
 
-        let trimmedSocials = socials.map(s => s.trim());
+        let trimmedSocials = socials.filter(s => s != null && s !== '').map(s => s.trim()).filter(s => s);
         if (trimmedSocials.length > 0) {
             trimmedSocials.forEach(social => {
-                formData.append("socials[]", social);
+                formData.append("socials", social);
             });
         }
 
-        let response = await apiCall("http://10.0.0.131:5130/api/Artists", formData);
-        if (response.ok) {
-            setIsNavigating(true);
+        if (artist != null) {
+            formData.set("id", artist.id.toString())
+            formData.set("pfp", artist.pfp ?? "")
+            let response = await apiCall(`http://10.0.0.131:5130/api/Artists/${artist.id}`, formData, "PUT");
+            if (response.ok) {
+                setIsNavigating(true);
+                setSelectedArtist(null);
+            } else {
+                let parsedResponse = await response.json()
+                setError(parsedResponse.error);
+            }
         } else {
-            alert("Error");
+            let response = await apiCall("http://10.0.0.131:5130/api/Artists", formData);
+            if (response.ok) {
+                setIsNavigating(true);
+            } else {
+                let parsedResponse = await response.json()
+                setError(parsedResponse.error);
+            }
         }
+
+
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,7 +512,7 @@ function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => v
             <form encType="multipart/form-data"
                   className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120"
                   onSubmit={handleSubmit}>
-                <div className="dos">Adding an artist</div>
+                <div className="dos">{artist ? ("Editing") : ("Adding")} an artist</div>
                 <hr></hr>
                 <div>
                     <div className="flex flex-row">
@@ -275,14 +521,18 @@ function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => v
                     </div>
                     <div className="flex flex-row gap-2">
                         <div className="flex flex-col gap-1 w-full">
-                            <input name="name" className="w-full h-6 border dos  text-center" type="text"
+                            {error ? (<div className="dos red">{error}</div>) : ("")}
+
+                            <input defaultValue={artist?.name} name="name"
+                                   className="w-full h-6 border dos  text-center" type="text"
                                    placeholder="Username"/>
-                            <textarea name="description" className="w-full h-full border dos  text-center"
+                            <textarea defaultValue={artist?.description} name="description"
+                                      className="w-full h-full border dos  text-center"
                                       placeholder="Description"/>
                         </div>
                         <div className="relative w-28 h-28 shrink-0 ml-auto border">
                             <input onChange={handleImageChange} accept="image/*"
-                                   className="absolute h-full opacity-0  w-full" type="file"
+                                   className="absolute h-full opacity-0 hover:cursor-pointer  w-full" type="file"
                                    name="avatar"/>
                             <img src={preview} className="pointer-events-none absolute border w-full h-full"
                                  alt="bleeh"/>
@@ -292,7 +542,9 @@ function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => v
                 </div>
                 <div className="flex flex-row mx-auto gap-1">
                     <div className="dos">Socials</div>
-                    <button type="button" onClick={addField} className="dos hover:cursor-pointer">[+]</button>
+                    <button type="button" onClick={addField}
+                            className="dos hover:cursor-pointer url">[+]
+                    </button>
                 </div>
                 <div className="flex flex-col gap-1">
                     {socials.map((link, index) => (
@@ -301,15 +553,15 @@ function CreateArtist({setIsNavigating}: { setIsNavigating: (bool: boolean) => v
                                    placeholder="Enter social link..."
                                    value={link} onChange={(e) => handleInputChange(index, e.target.value)}/>
                             <button type="button" onClick={() => removeField(index)}
-                                    className="dos hover:cursor-pointer">[-]
+                                    className="dos hover:cursor-pointer url">[-]
                             </button>
                         </div>
                     ))}
                 </div>
-                <button type="submit" className="border mt-3 dos">Submit!</button>
+                <button type="submit" className="border url hover:cursor-pointer mt-3 dos">Submit!</button>
 
             </form>
         </>
-    );
+    )
 }
 
