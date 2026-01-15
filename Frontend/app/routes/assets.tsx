@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {Link} from "react-router";
 import {useAuth} from '~/context/AuthContext';
 import {apiCall} from "~/tsx/functions";
@@ -99,7 +99,7 @@ export default function Assets() {
                             <ArtistForm key={selectedArtist?.id ?? "new-artist"} setIsNavigating={setIsNavigating}
                                         setSelectedArtist={setSelectedArtist}
                                         artist={selectedArtist}/>) : (
-                            <CreateAsset item={labelDictionary[selectedButton]}/>)
+                            <AssetForm item={labelDictionary[selectedButton]} asset={null}/>)
                     )
                 }
             </div>
@@ -423,13 +423,183 @@ function FetchArtists({setSelectedArtist, setIsNavigating}: {
     )
 }
 
-function CreateAsset({item}: {
+function AssetForm({item, asset}: {
     item: number,
+    asset: Asset | null,
 }) {
+
+    const [width, setWidth] = useState("w-50");
+    const [height, setHeight] = useState("h-50");
+    const [preview, setPreview] = useState("https://votvbroadcast.com/images/picture.png")
+    const [artistId, setArtistId] = useState(0);
+    const [selectedOption, setSelectedOption] = useState("1");
+
+    useEffect(() => {
+        if (item != 1) {
+            setWidth("w-50");
+            setHeight("h-50");
+            setSelectedOption("1")
+        } else {
+            switch (selectedOption) {
+                case "0":
+                    setWidth("w-50");
+                    setHeight("h-40");
+                    break;
+                case "1":
+                    setWidth("w-50");
+                    setHeight("h-50");
+                    break;
+                case "2":
+                    setWidth("w-50");
+                    setHeight("h-80");
+                    break;
+                case "3":
+                    setWidth("w-50");
+                    setHeight("h-66");
+                    break;
+            }
+        }
+    }, [selectedOption, item]);
+
+    const handleChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
+        setSelectedOption(event.target.value);
+    };
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+
+        if (file) {
+            const imageUrl = URL.createObjectURL(file);
+            setPreview(imageUrl);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.currentTarget);
+    }
+
     return (
         <>
-            <h2>Adding a {ItemEnum[item]}</h2>
+            <form encType="multipart/form-data"
+                  className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120"
+                  onSubmit={handleSubmit}>
+                <div className="dos">{asset ? ("Editing") : ("Adding")} {ItemEnum[item]}</div>
+                <hr></hr>
+                <div>
+                    <div className="dos w-full text-center">Thumbnail</div>
+                    <div className={`relative mx-auto ${width} ${height} shrink-0 mb-1 border`}>
+                        <input onChange={handleImageChange} accept="image/*"
+                               className="absolute h-full opacity-0 hover:cursor-pointer  w-full" type="file"
+                               name="avatar"/>
+                        <img src={preview}
+                             className="pointer-events-none object-contain object-center absolute border w-full h-full"
+                             alt="bleeh"/>
+                    </div>
+                </div>
+                <div className="dos">Attributes</div>
+                <hr/>
+                <div className="mt-2 flex flex-col gap-1">
+                    <input name="name"
+                           className="w-full h-6 border dos  text-center" type="text"
+                           placeholder="Title"/>
+                    <div className="flex items-center h-12 flex-row gap-1">
+                        <div className="dos">Artist:</div>
+                        <ArtistDropdown onSelect={setArtistId}></ArtistDropdown>
+                    </div>
+                    {
+                        item == 1 ? (<div className="flex items-center flex-row gap-3">
+                            <div className="dos">Ratio:</div>
+                            <select value={selectedOption} onChange={handleChange}
+                                    className="dos border w-full p-3 hover:cursor-pointer">
+                                <option value="0">Horizontal (5 : 4)</option>
+                                <option value="1">Square (1 : 1)</option>
+                                <option value="2">Vertical (5 : 8)</option>
+                                <option value="3">Table (3 : 4)</option>
+                            </select>
+                        </div>) : ("")
+
+                    }
+
+                </div>
+
+
+            </form>
         </>
+    );
+}
+
+function ArtistDropdown({onSelect}: { onSelect: (id: number) => void }) {
+    const [artists, setArtists] = useState<Artist[]>([]);
+    const [search, setSearch] = useState("");
+    const [isOpen, setIsOpen] = useState(false);
+    const [selected, setSelected] = useState<Artist | null>(null);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        apiCall("http://10.0.0.131:5130/api/Artists", null)
+            .then(res => res.json())
+            .then(setArtists);
+    }, []);
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [isOpen]);
+
+    const filtered = artists.filter(a =>
+        a.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const select = (artist: Artist) => {
+        setSearch(artist.name);
+        setSelected(artist);
+        onSelect(artist.id);
+        setIsOpen(false);
+    };
+
+    return (
+        <div ref={ref} className="relative w-full">
+            <div className="relative">
+                {selected && (
+                    <img
+                        className="absolute left-0.5 top-1/2 -translate-y-1/2 size-10 border-r-1 dos pointer-events-none"
+                        src={selected.pfpUrl}
+                        alt={selected.name}
+                    />
+                )}
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setIsOpen(true);
+                    }}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder="Search artists..."
+                    className={`w-full border bg-black dos p-2 ${selected ? 'pl-12' : ''}`}
+                />
+            </div>
+
+            {isOpen && filtered.length > 0 ? (
+                <div className="absolute z-50 w-full bg-black border border-t-0 max-h-60 overflow-y-auto">
+                    {filtered.map(a => (
+                        <div
+                            key={a.id}
+                            onClick={() => select(a)}
+                            className="flex flex-row gap-1 h-12 border-b border-white items-center hover:cursor-pointer dos">
+                            <img className="size-12" src={a.pfpUrl} alt="pfp"/>
+                            {a.name}
+                        </div>
+                    ))}
+                </div>
+            ) : ("")}
+        </div>
     );
 }
 
