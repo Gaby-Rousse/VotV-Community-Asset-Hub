@@ -77,3 +77,28 @@ export function GenerateSocial({url}: { url: string }) {
             className="dos my-auto"/>{url}</a>
     return social
 }
+
+export async function downloadFile(url: string, filename: string) {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+
+        const forcedBlob = new Blob([blob], {type: 'application/octet-stream'});
+        const blobUrl = window.URL.createObjectURL(forcedBlob);
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+    } catch (error) {
+        console.error('Download failed:', error);
+    }
+}

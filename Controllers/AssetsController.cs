@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SixLabors.ImageSharp;
 using VotVAssets.Models;
 
 namespace VotVAssets.Controllers;
@@ -25,7 +26,7 @@ public class AssetsController : ControllerBase
 
     // GET: api/Assets
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Asset>>> GetAssets(
+    public async Task<ActionResult<IEnumerable<AssetDto>>> GetAssets(
         ItemEnum? Item = null,
         TypeEnum? Type = null,
         string? OwnerId = null,
@@ -45,7 +46,32 @@ public class AssetsController : ControllerBase
         if (!string.IsNullOrEmpty(Name))
             query = query.Where(a => a.Name.Contains(Name));
 
-        return await query.ToListAsync();
+        //https://learn.microsoft.com/en-us/dotnet/framework/data/adonet/ef/language-reference/method-based-query-syntax-examples-join-operators
+        //idk why we must do a select afterward
+        var joinedQuery = query.Join(
+            _context.Artists,
+            asset => asset.ArtistId,
+            artist => artist.Id,
+            (asset, artist) => new AssetDto
+            {
+                Id = asset.Id,
+                Name = asset.Name,
+                ArtistName = artist.Name,
+                OwnerId = asset.OwnerId,
+                ArtistId = asset.ArtistId,
+                Filename = asset.Filename,
+                Item = asset.Item,
+                Description = asset.Description,
+                Thumbnail = asset.Thumbnail,
+                Source = asset.Source,
+                Tags = asset.Tags,
+                Type = asset.Type,
+                CreatedAt = asset.CreatedAt,
+                UpdatedAt = asset.UpdatedAt
+            }
+        );
+
+        return await joinedQuery.ToListAsync();
     }
 
     // GET: api/Assets/5
@@ -97,9 +123,15 @@ public class AssetsController : ControllerBase
 
         var file = await HandleFile(Request.Form.Files["file"]);
         if (file != null)
+        {
+            if (file == "INVALID_TYPE") return BadRequest(new { error = "Only images or .zip files allowed." });
+
             asset.Filename = file;
+        }
         else
+        {
             return BadRequest(new { error = "A file is required." });
+        }
 
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync();
@@ -144,21 +176,43 @@ public class AssetsController : ControllerBase
         return fileName;
     }
 
+
     private async Task<string?> HandleFile(IFormFile? file)
     {
+        if (file == null) return null;
+
         var rootPath = _environment.ContentRootPath;
         var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "files");
 
+        var fileName = $"{Guid.NewGuid()}";
 
-        if (file == null) return null;
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var fullPath = Path.Combine(uploadFolder, fileName);
-
-        await using (var stream = new FileStream(fullPath, FileMode.Create))
+        try
         {
-            await file.CopyToAsync(stream);
+            using (var image = await Image.LoadAsync(file.OpenReadStream()))
+            {
+                fileName += ".png";
+                var fullPath = Path.Combine(uploadFolder, fileName);
+                await image.SaveAsPngAsync(fullPath);
+                return fileName;
+            }
         }
+        catch
+        {
+            if (file.ContentType == "application/zip" ||
+                file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                fileName += ".zip";
+                var fullPath = Path.Combine(uploadFolder, fileName);
 
-        return fileName;
+                await using (var stream = new FileStream(fullPath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                return fileName;
+            }
+
+            return "INVALID_TYPE";
+        }
     }
 }

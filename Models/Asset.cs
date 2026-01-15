@@ -44,4 +44,10 @@ public class Asset : Timestamp
 
     public string[]? Tags { get; set; }
     public TypeEnum? Type { get; set; }
+
+    public string ThumbnailUrl => string.IsNullOrEmpty(Thumbnail)
+        ? "http://10.0.0.131:5130/uploads/thumbnails/picture.png"
+        : $"http://10.0.0.131:5130/uploads/thumbnails/{Thumbnail}";
+
+    public string FileUrl => $"http://10.0.0.131:5130/uploads/files/{Filename}";
 }

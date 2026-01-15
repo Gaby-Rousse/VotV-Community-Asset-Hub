@@ -1,8 +1,6 @@
 import React, {useEffect, useRef, useState} from "react";
 import type Artist from "~/models/interfaces/Artist";
 import {apiCall, GenerateSocial} from "~/tsx/functions";
-import type Asset from "~/models/interfaces/Asset";
-import ItemEnum from "~/models/enums/ItemEnum";
 import {useAuth} from "~/context/AuthContext";
 
 export function ArtistDropdown({onSelect}: { onSelect: (id: number) => void }) {
@@ -68,7 +66,7 @@ export function ArtistDropdown({onSelect}: { onSelect: (id: number) => void }) {
                         <div
                             key={a.id}
                             onClick={() => select(a)}
-                            className="flex flex-row gap-1 h-12 border-b border-white items-center hover:cursor-pointer dos">
+                            className="flex flex-row gap-1 line-clamp-1 h-12 border-b border-white items-center hover:cursor-pointer dos">
                             <img className="size-11.75" src={a.pfpUrl} alt="pfp"/>
                             {a.name}
                         </div>
@@ -233,9 +231,9 @@ export function ShowArtist({id, setId}: { id: number, setId: (value: number) => 
                     className="flex flex-col mx-auto my-auto w-full h-full sm:w-2/3 sm:h-2/3 bg-black border-2 overflow-hidden">
                     <div className="flex shrink-0 w-full gap-2 h-28 border-b-2 flex-row">
                         <img className="border-r-2 w-28 h-full object-cover" alt="avatar" src={artist?.pfpUrl}/>
-                        <div className="dos text-3xl my-auto">{artist?.name}</div>
+                        <div className="dos text-3xl line-clamp-1 my-auto">{artist?.name}</div>
                         <button onClick={() => setId(0)}
-                                className="dos border hover:cursor-pointer size-8 ml-auto mb-auto m-1"
+                                className="dos shrink-0 border hover:cursor-pointer size-8 ml-auto mb-auto m-1"
                                 type="button">
                             <img src="https://votvbroadcast.com/images/cross.png"/>
                         </button>
@@ -355,9 +353,9 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
                              className="flex flex-row gap-1 hover:cursor-pointer border-b">
                             <img className="w-12 h-12 border-r" src={a.pfpUrl} alt="Avatar"/>
                             <div className="flex flex-col gap-3">
-                                <div className="dos my-auto">{a.name}</div>
+                                <div className="dos my-auto line-clamp-1">{a.name}</div>
                             </div>
-                            <div className="flex flex-row gap-1 ml-auto mr-1 my-auto">
+                            <div className="flex flex-row gap-1 shrink-0 ml-auto mr-1 my-auto">
                                 {isAuthenticated ? (isAdmin || id == a.ownerId ? (<>
                                         <button
                                             onClick={(e) => {
@@ -365,7 +363,7 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
                                                 setArtistId(a.id);
                                                 setDeleteArtist(true);
                                             }}
-                                            className="dos hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                            className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
                                             <img className="size-6" src="https://votvbroadcast.com/images/trash.png"/>
                                             <div className="hidden sm:flex">Delete</div>
                                         </button>
@@ -374,7 +372,7 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
                                             FetchArtist(a.id).then(data => setSelectedArtist(data));
                                             setIsNavigating(false);
                                         }}
-                                                className="dos hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                                className="dos  shrink-0  hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
                                             <img className="size-6" src="https://votvbroadcast.com/images/pencil.png"/>
                                             <div className="hidden sm:flex">Edit</div>
                                         </button>
