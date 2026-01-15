@@ -430,7 +430,7 @@ function AssetForm({item, asset}: {
 
     const [width, setWidth] = useState("w-50");
     const [height, setHeight] = useState("h-50");
-    const [preview, setPreview] = useState("https://votvbroadcast.com/images/picture.png")
+    const [preview, setPreview] = useState("http://10.0.0.131:5130/uploads/thumbnails/picture.png")
     const [artistId, setArtistId] = useState(0);
     const [selectedOption, setSelectedOption] = useState("1");
 
@@ -491,7 +491,7 @@ function AssetForm({item, asset}: {
                     <div className={`relative mx-auto ${width} ${height} shrink-0 mb-1 border`}>
                         <input onChange={handleImageChange} accept="image/*"
                                className="absolute h-full opacity-0 hover:cursor-pointer  w-full" type="file"
-                               name="avatar"/>
+                               name="thumbnail"/>
                         <img src={preview}
                              className="pointer-events-none object-contain object-center absolute border w-full h-full"
                              alt="bleeh"/>
@@ -500,16 +500,20 @@ function AssetForm({item, asset}: {
                 <div className="dos">Attributes</div>
                 <hr/>
                 <div className="mt-2 flex flex-col gap-1">
-                    <input name="name"
-                           className="w-full h-6 border dos  text-center" type="text"
-                           placeholder="Title"/>
+                    <div className="flex relative flex-row">
+                        <b className="red absolute left-1 dos mr-1">*</b>
+                        <input name="name"
+                               className="w-full h-6 border dos  text-center" type="text"
+                               placeholder="Title"/>
+                    </div>
+
                     <div className="flex items-center h-12 flex-row gap-1">
-                        <div className="dos">Artist:</div>
+                        <div className="dos"><b className="red dos mr-1">*</b>Artist:</div>
                         <ArtistDropdown onSelect={setArtistId}></ArtistDropdown>
                     </div>
                     {
-                        item == 1 ? (<div className="flex items-center flex-row gap-3">
-                            <div className="dos">Ratio:</div>
+                        item == 1 ? (<div className="flex mb-1 items-center flex-row gap-3">
+                            <div className="dos"><b className="red dos mr-1">*</b>Ratio:</div>
                             <select value={selectedOption} onChange={handleChange}
                                     className="dos border w-full p-3 hover:cursor-pointer">
                                 <option value="0">Horizontal (5 : 4)</option>
@@ -520,9 +524,30 @@ function AssetForm({item, asset}: {
                         </div>) : ("")
 
                     }
+                    <textarea name="description"
+                              className="w-full h-24 border dos  text-center"
+                              placeholder="Description"/>
+                    <input name="source"
+                           className="w-full h-6 border dos  text-center" type="text"
+                           placeholder="Source"/>
+                    <div className="flex relative flex-row">
+                        <b className="red absolute left-1 dos mr-1">*</b>
+                        <input name="file"
+                               className="w-full h-6 border dos  text-center" type="file"
+                        />
+                    </div>
+
 
                 </div>
-
+                <hr className="my-2"/>
+                <div className="flex flex-row gap-1">
+                    <button onClick={() => {
+                        setArtistId(0);
+                        setPreview("http://10.0.0.131:5130/uploads/thumbnails/picture.png")
+                    }} className="dos url hover:cursor-pointer border w-2/10" type="reset">Reset
+                    </button>
+                    <button className="dos url hover:cursor-pointer border w-8/10" type="submit">Submit!</button>
+                </div>
 
             </form>
         </>
@@ -568,7 +593,7 @@ function ArtistDropdown({onSelect}: { onSelect: (id: number) => void }) {
             <div className="relative">
                 {selected && (
                     <img
-                        className="absolute left-0.5 top-1/2 -translate-y-1/2 size-10 border-r-1 dos pointer-events-none"
+                        className="absolute left-0.5 top-1/2 -translate-y-1/2 size-10 border-r dos pointer-events-none"
                         src={selected.pfpUrl}
                         alt={selected.name}
                     />
@@ -593,7 +618,7 @@ function ArtistDropdown({onSelect}: { onSelect: (id: number) => void }) {
                             key={a.id}
                             onClick={() => select(a)}
                             className="flex flex-row gap-1 h-12 border-b border-white items-center hover:cursor-pointer dos">
-                            <img className="size-12" src={a.pfpUrl} alt="pfp"/>
+                            <img className="size-11.75" src={a.pfpUrl} alt="pfp"/>
                             {a.name}
                         </div>
                     ))}
@@ -692,10 +717,12 @@ function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
                     <div className="flex flex-row gap-2">
                         <div className="flex flex-col gap-1 w-full">
                             {error ? (<div className="dos red">{error}</div>) : ("")}
-
-                            <input defaultValue={artist?.name} name="name"
-                                   className="w-full h-6 border dos  text-center" type="text"
-                                   placeholder="Username"/>
+                            <div className="flex relative flex-row">
+                                <b className="red absolute left-1 dos mr-1">*</b>
+                                <input defaultValue={artist?.name} name="name"
+                                       className="w-full h-6 border dos  text-center" type="text"
+                                       placeholder="Username"/>
+                            </div>
                             <textarea defaultValue={artist?.description} name="description"
                                       className="w-full h-full border dos  text-center"
                                       placeholder="Description"/>
