@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
@@ -10,10 +11,16 @@ namespace VotVAssets.Controllers;
 public class AssetsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IWebHostEnvironment _environment;
+    private readonly UserManager<IdentityUser> _userManager;
 
-    public AssetsController(ApplicationDbContext context)
+
+    public AssetsController(IWebHostEnvironment environment, ApplicationDbContext context,
+        UserManager<IdentityUser> userManager)
     {
+        _environment = environment;
         _context = context;
+        _userManager = userManager;
     }
 
     // GET: api/Assets
@@ -80,8 +87,20 @@ public class AssetsController : ControllerBase
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<Asset>> PostAsset(Asset asset)
+    public async Task<ActionResult<Asset>> PostAsset([FromForm] Asset asset)
     {
+        asset.OwnerId = _userManager.GetUserId(User);
+
+        var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
+        if (thumbnail != null)
+            asset.Thumbnail = thumbnail;
+
+        var file = await HandleFile(Request.Form.Files["file"]);
+        if (file != null)
+            asset.Filename = file;
+        else
+            return BadRequest(new { error = "A file is required." });
+
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync();
 
@@ -105,5 +124,41 @@ public class AssetsController : ControllerBase
     private bool AssetExists(long id)
     {
         return _context.Assets.Any(e => e.Id == id);
+    }
+
+    private async Task<string?> HandleThumbnail(IFormFile? thumbnail)
+    {
+        var rootPath = _environment.ContentRootPath;
+        var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "thumbnails");
+
+
+        if (thumbnail == null) return null;
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(thumbnail.FileName)}";
+        var fullPath = Path.Combine(uploadFolder, fileName);
+
+        await using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await thumbnail.CopyToAsync(stream);
+        }
+
+        return fileName;
+    }
+
+    private async Task<string?> HandleFile(IFormFile? file)
+    {
+        var rootPath = _environment.ContentRootPath;
+        var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "files");
+
+
+        if (file == null) return null;
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+        var fullPath = Path.Combine(uploadFolder, fileName);
+
+        await using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        return fileName;
     }
 }
