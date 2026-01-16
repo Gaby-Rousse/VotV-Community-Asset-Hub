@@ -140,6 +140,7 @@
         <Folder Include="Frontend\app\fonts\"/>
         <Folder Include="Frontend\app\models\classes\"/>
         <Folder Include="Migrations\ApplicationDb\"/>
+        <Folder Include="wwwroot\uploads\files\"/>
     </ItemGroup>
 
 </Project>

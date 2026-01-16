@@ -89,11 +89,31 @@ public class AssetsController : ControllerBase
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [Authorize]
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutAsset(long id, Asset asset)
+    public async Task<IActionResult> PutAsset(long id, [FromForm] Asset asset)
     {
         if (id != asset.Id) return BadRequest();
 
+        //https://stackoverflow.com/a/56865203 goofy
+        var existingAsset = await _context.Assets.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
+        if (!User.IsInRole("Admin") && existingAsset.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
+
         _context.Entry(asset).State = EntityState.Modified;
+
+        asset.OwnerId = existingAsset.OwnerId;
+        asset.Filename = existingAsset.Filename;
+        asset.CreatedAt = existingAsset.CreatedAt;
+
+        var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
+        if (thumbnail != null)
+        {
+            DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "thumbnails",
+                existingAsset.Thumbnail ?? ""));
+            asset.Thumbnail = thumbnail;
+        }
+        else
+        {
+            asset.Thumbnail = existingAsset.Thumbnail;
+        }
 
         try
         {
@@ -145,11 +165,15 @@ public class AssetsController : ControllerBase
     public async Task<IActionResult> DeleteAsset(long id)
     {
         var asset = await _context.Assets.FindAsync(id);
+        if (!User.IsInRole("Admin") && asset.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
         if (asset == null) return NotFound();
 
         _context.Assets.Remove(asset);
         await _context.SaveChangesAsync();
 
+        DeleteFile(
+            Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "thumbnails", asset.Thumbnail ?? ""));
+        DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "files", asset.Filename ?? ""));
         return NoContent();
     }
 
@@ -158,11 +182,16 @@ public class AssetsController : ControllerBase
         return _context.Assets.Any(e => e.Id == id);
     }
 
+    private void DeleteFile(string filepath)
+    {
+        if (System.IO.File.Exists(filepath))
+            System.IO.File.Delete(filepath);
+    }
+
     private async Task<string?> HandleThumbnail(IFormFile? thumbnail)
     {
         var rootPath = _environment.ContentRootPath;
         var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "thumbnails");
-
 
         if (thumbnail == null) return null;
         var fileName = $"{Guid.NewGuid()}{Path.GetExtension(thumbnail.FileName)}";

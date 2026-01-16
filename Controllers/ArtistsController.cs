@@ -58,7 +58,15 @@ public class ArtistsController : ControllerBase
 
         var pfp = await HandlePfp(Request.Form.Files["avatar"]);
         if (pfp != null)
+        {
             artist.Pfp = pfp;
+            DeleteFile(
+                Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "avatars", existingArtist.Pfp ?? ""));
+        }
+        else
+        {
+            artist.Pfp = existingArtist.Pfp;
+        }
 
         try
         {
@@ -107,7 +115,17 @@ public class ArtistsController : ControllerBase
         if (!User.IsInRole("Admin") && existingArtist.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
 
         _context.Artists.Remove(artist);
+
+        var assetsToUpdate = _context.Assets.Where(a => a.ArtistId == existingArtist.Id).ToList();
+
+        foreach (var asset in assetsToUpdate)
+            //server id = 30
+            asset.ArtistId = 30;
+
         await _context.SaveChangesAsync();
+
+        DeleteFile(
+            Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "avatars", existingArtist.Pfp ?? ""));
 
         return NoContent();
     }
@@ -133,5 +151,11 @@ public class ArtistsController : ControllerBase
         }
 
         return fileName;
+    }
+
+    private void DeleteFile(string filepath)
+    {
+        if (System.IO.File.Exists(filepath))
+            System.IO.File.Delete(filepath);
     }
 }

@@ -31,6 +31,7 @@ export default function Assets() {
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
     const toggleNavigating = () => {
         setSelectedArtist(null);
+        setSelectedAsset(null);
         setIsNavigating(!isNavigating);
     };
 
@@ -50,7 +51,8 @@ export default function Assets() {
                             <ArtistForm key={selectedArtist?.id ?? "new-artist"} setIsNavigating={setIsNavigating}
                                         setSelectedArtist={setSelectedArtist}
                                         artist={selectedArtist}/>) : (
-                            <AssetForm item={labelDictionary[selectedButton]} asset={selectedAsset}
+                            <AssetForm key={selectedAsset?.id ?? "new-asset"} item={labelDictionary[selectedButton]}
+                                       asset={selectedAsset}
                                        setIsNavigating={setIsNavigating}/>)
                     )
                 }
@@ -125,18 +127,19 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
 }) {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [assetId, setAssetId] = useState(0);
+    const [trigger, setTrigger] = useState(0);
 
 
     useEffect(() => {
         apiCall("http://10.0.0.131:5130/api/Assets?item=" + item, null).then(res => res.json())
             .then(data => setAssets(data))
             .catch(err => console.error('Failed to fetch assets:', err));
-    }, [item]);
+    }, [item, trigger]);
 
     return (
         <>
             {assetId != 0 ? (<ShowAsset id={assetId} setId={setAssetId} setSelectedAsset={setSelectedAsset}
-                                        setIsNavigating={setIsNavigating}/>) : ("")}
+                                        setIsNavigating={setIsNavigating} setTrigger={setTrigger}/>) : ("")}
             <div
                 className="flex sm:justify-center overflow-y-auto sm:flex-wrap mt-3 mb-3 sm:mt-1 px-1 gap-3 flex-col sm:flex-row">
                 {assets.map((a) => (
@@ -180,8 +183,8 @@ function AssetForm({item, asset, setIsNavigating}: {
     const [width, setWidth] = useState("w-50");
     const [height, setHeight] = useState("h-50");
     const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("http://10.0.0.131:5130/uploads/thumbnails/picture.png"))
-    const [artistId, setArtistId] = useState(0);
-    const [selectedOption, setSelectedOption] = useState("1");
+    const [artistId, setArtistId] = useState(asset?.artistId ?? 0);
+    const [selectedOption, setSelectedOption] = useState(asset?.type?.toString() ?? "1");
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -237,13 +240,26 @@ function AssetForm({item, asset, setIsNavigating}: {
         formData.set("item", item.toString());
         formData.set("filename", "willBeHandledByServer")
 
-        let response = await apiCall("http://10.0.0.131:5130/api/Assets", formData, "POST");
-        if (response.ok) {
-            setIsNavigating(true);
+        if (asset != null) {
+            formData.set("id", asset.id.toString())
+            let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${asset.id}`, formData, "PUT");
+            if (response.ok) {
+                setIsNavigating(true);
+            } else {
+                let parsedResponse = await response.json();
+                setError(parsedResponse.error);
+            }
         } else {
-            let parsedResponse = await response.json();
-            setError(parsedResponse.error);
+            let response = await apiCall("http://10.0.0.131:5130/api/Assets", formData, "POST");
+            if (response.ok) {
+                setIsNavigating(true);
+            } else {
+                let parsedResponse = await response.json();
+                setError(parsedResponse.error);
+            }
         }
+
+
     }
 
     return (
@@ -274,14 +290,15 @@ function AssetForm({item, asset, setIsNavigating}: {
                 <div className="mt-2 flex flex-col gap-1">
                     <div className="flex relative flex-row">
                         <b className="red absolute left-1 dos mr-1">*</b>
-                        <input name="name"
+                        <input defaultValue={asset?.name} name="name"
                                className="w-full h-6 border dos  text-center" type="text"
                                placeholder="Title"/>
                     </div>
 
                     <div className="flex items-center h-12 flex-row gap-1">
                         <div className="dos"><b className="red dos mr-1">*</b>Artist:</div>
-                        <ArtistDropdown onSelect={setArtistId}></ArtistDropdown>
+                        <ArtistDropdown initialArtistId={asset?.artistId ?? null}
+                                        onSelect={setArtistId}></ArtistDropdown>
                     </div>
                     {
                         item == 1 ? (<div className="flex mb-1 items-center flex-row gap-3">
@@ -298,10 +315,14 @@ function AssetForm({item, asset, setIsNavigating}: {
                     }
                     <textarea name="description"
                               className="w-full h-24 border dos  text-center"
-                              placeholder="Description"/>
+                              placeholder="Description"
+                              defaultValue={asset?.description}
+                    />
                     <input name="source"
                            className="w-full h-6 border dos  text-center" type="text"
-                           placeholder="Source"/>
+                           placeholder="Source"
+                           defaultValue={asset?.description}
+                    />
                     <div className="flex relative flex-row">
                         {asset ? ("") : (<><b className="red absolute left-1 dos mr-1">*</b>
                             <input name="file"
@@ -332,14 +353,17 @@ export async function FetchAsset(id: number): Promise<Asset> {
     return data;
 }
 
-export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset}: {
+export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrigger}: {
     id: number,
     setId: (value: number) => void,
     setIsNavigating: (value: boolean) => void
     setSelectedAsset: (asset: Asset) => void,
+    setTrigger: (trigger: number) => void,
 }) {
     const [artist, setArtist] = useState<Artist | null>();
     const [asset, setAsset] = useState<Asset | null>();
+    const [askConfirmation, setAskConfirmation] = useState(false);
+    const {isAuthenticated, isAdmin, id: userId} = useAuth();
     useEffect(() => {
         FetchAsset(id)
             .then(asset => {
@@ -351,6 +375,17 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset}: {
             })
             .catch(err => console.error(err));
     }, [id]);
+
+    async function deleteAsset(id: number) {
+        let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${id}`, new FormData(), "DELETE");
+        if (response.ok) {
+            setTrigger(Date.now())
+            setId(0)
+        } else {
+            let parsedResponse = await response.json();
+            alert(parsedResponse.title);
+        }
+    }
 
     return (
         <>
@@ -409,28 +444,43 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset}: {
                     <div className="flex border-t shrink-0 w-full gap-2 h-12 flex-row">
 
                         <div className="flex flex-row ml-auto gap-1 mr-1">
-                            <button onClick={() => downloadFile(asset?.fileUrl ?? "", asset?.filename ?? "")}
-                                    className="dos shrink-0 border hover:cursor-pointer my-auto">
-                                <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
-                                    <img className="size-7" src="https://votvbroadcast.com/images/trash.png"/>
-                                    <div className="dos my-auto">Delete</div>
-                                </div>
-
-
-                            </button>
-                            <button onClick={(e) => {
-                                e.stopPropagation();
-                                FetchAsset(asset?.id ?? 0).then(data => setSelectedAsset(data));
-                                setIsNavigating(false);
-                            }}
-                                    className="dos shrink-0 border hover:cursor-pointer my-auto">
-                                <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
-                                    <img className="size-7" src="https://votvbroadcast.com/images/pencil.png"/>
-                                    <div className="dos my-auto">Edit</div>
-                                </div>
-
-
-                            </button>
+                            {isAuthenticated ? (
+                                (isAdmin || userId == (asset?.ownerId ?? 0)) ? (
+                                    <>
+                                        {askConfirmation ? (
+                                            <button onClick={() => deleteAsset(asset?.id ?? 0)}
+                                                    className="dos red shrink-0 border hover:cursor-pointer my-auto">
+                                                <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
+                                                    <img className="size-7"
+                                                         src="https://votvbroadcast.com/images/trash2.png"/>
+                                                    <div className="dos red my-auto">Confirm deletion</div>
+                                                </div>
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => setAskConfirmation(true)}
+                                                    className="dos shrink-0 border hover:cursor-pointer my-auto">
+                                                <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
+                                                    <img className="size-7"
+                                                         src="https://votvbroadcast.com/images/trash.png"/>
+                                                    <div className="dos my-auto">Delete</div>
+                                                </div>
+                                            </button>
+                                        )}
+                                        <button onClick={(e) => {
+                                            e.stopPropagation();
+                                            FetchAsset(asset?.id ?? 0).then(data => setSelectedAsset(data));
+                                            setIsNavigating(false);
+                                        }}
+                                                className="dos shrink-0 border hover:cursor-pointer my-auto">
+                                            <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
+                                                <img className="size-7"
+                                                     src="https://votvbroadcast.com/images/pencil.png"/>
+                                                <div className="dos my-auto">Edit</div>
+                                            </div>
+                                        </button>
+                                    </>
+                                ) : ("")
+                            ) : ("")}
                             <button onClick={() => downloadFile(asset?.fileUrl ?? "", asset?.filename ?? "")}
                                     className="dos shrink-0 border hover:cursor-pointer my-auto">
                                 <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
