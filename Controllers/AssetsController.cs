@@ -1,9 +1,18 @@
+using Aspose.ThreeD;
+using Aspose.ThreeD.Entities;
+using Aspose.ThreeD.Formats;
+using Aspose.ThreeD.Shading;
+using Aspose.ThreeD.Utilities;
+using Aspose.Zip;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using VotVAssets.Models;
+using Asset = VotVAssets.Models.Asset;
+using Image = SixLabors.ImageSharp.Image;
+
 
 namespace VotVAssets.Controllers;
 
@@ -66,6 +75,7 @@ public class AssetsController : ControllerBase
                 Source = asset.Source,
                 Tags = asset.Tags,
                 Type = asset.Type,
+                Preview = asset.Preview,
                 CreatedAt = asset.CreatedAt,
                 UpdatedAt = asset.UpdatedAt
             }
@@ -142,6 +152,7 @@ public class AssetsController : ControllerBase
             asset.Thumbnail = thumbnail;
 
         var file = await HandleFile(Request.Form.Files["file"]);
+
         if (file != null)
         {
             if (file == "INVALID_TYPE") return BadRequest(new { error = "Only images or .zip files allowed." });
@@ -152,6 +163,10 @@ public class AssetsController : ControllerBase
         {
             return BadRequest(new { error = "A file is required." });
         }
+
+        if (asset.Item == ItemEnum.Model)
+            asset.Preview = await ConvertAndSaveGlb(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads",
+                "files", asset.Filename));
 
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync();
@@ -242,6 +257,151 @@ public class AssetsController : ControllerBase
             }
 
             return "INVALID_TYPE";
+        }
+    }
+
+    //AI GENERATED
+    public async Task<string> ConvertAndSaveGlb(string zipPath)
+    {
+        TrialException.SuppressTrialException = true;
+
+        var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempPath);
+
+        try
+        {
+            // Extract ZIP contents
+            using (var archive = new Archive(zipPath))
+            {
+                archive.ExtractToDirectory(tempPath);
+            }
+
+            // Find the OBJ file
+            var objFile = Directory.GetFiles(tempPath, "*.obj", SearchOption.AllDirectories).FirstOrDefault();
+            if (objFile == null)
+                throw new FileNotFoundException("No .obj file found in the ZIP archive.");
+
+            // Load the scene with proper options
+            var loadOptions = new ObjLoadOptions
+            {
+                EnableMaterials = true,
+                FlipCoordinateSystem = true,
+                LookupPaths = new List<string> { tempPath }
+            };
+
+            var scene = Scene.FromFile(objFile, loadOptions);
+
+            // Find textures in the extracted folder
+            var textureFiles = Directory.GetFiles(tempPath, "*.*", SearchOption.AllDirectories)
+                .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                .Where(f => !Path.GetFileName(f).Equals("icon.png", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // Prioritize diffuse texture
+            var diffuseTexture = textureFiles.FirstOrDefault(f =>
+                Path.GetFileName(f).StartsWith("diffuse_", StringComparison.OrdinalIgnoreCase));
+
+            var pbrTexture = textureFiles.FirstOrDefault(f =>
+                Path.GetFileName(f).StartsWith("pbr_", StringComparison.OrdinalIgnoreCase));
+
+            var mainTexture = diffuseTexture ?? pbrTexture ?? textureFiles.FirstOrDefault();
+
+            // Create embedded texture object if we have a texture file
+            Texture? textureObj = null;
+            if (mainTexture != null)
+            {
+                var textureBytes = await System.IO.File.ReadAllBytesAsync(mainTexture);
+                textureObj = new Texture
+                {
+                    Content = textureBytes,
+                    FileName = Path.GetFileName(mainTexture)
+                };
+            }
+
+            // Create PBR material
+            var newMaterial = new PbrMaterial
+            {
+                Name = "EmbeddedMaterial",
+                MetallicFactor = 0.0,
+                RoughnessFactor = 0.5
+            };
+
+            if (textureObj != null)
+            {
+                newMaterial.AlbedoTexture = textureObj;
+                newMaterial.Albedo = new Vector3(1.0, 1.0, 1.0);
+            }
+            else
+            {
+                newMaterial.Albedo = new Vector3(0.8, 0.8, 0.8);
+            }
+
+            // First pass: collect collision meshes to remove
+            var nodesToRemove = new List<Node>();
+            scene.RootNode.Accept(n =>
+            {
+                if (n.Name != null && (
+                        n.Name.StartsWith("UCX_", StringComparison.OrdinalIgnoreCase) ||
+                        n.Name.StartsWith("UBX_", StringComparison.OrdinalIgnoreCase) ||
+                        n.Name.StartsWith("USP_", StringComparison.OrdinalIgnoreCase) ||
+                        n.Name.StartsWith("UCP_", StringComparison.OrdinalIgnoreCase)))
+                    nodesToRemove.Add(n);
+                return true;
+            });
+
+            // Remove collision meshes
+            foreach (var nodeToRemove in nodesToRemove) nodeToRemove.ParentNode?.ChildNodes.Remove(nodeToRemove);
+
+            // Second pass: apply materials and fix meshes
+            scene.RootNode.Accept(n =>
+            {
+                if (n.Entity is Mesh mesh)
+                {
+                    // Generate normals if missing
+                    if (mesh.GetElement(VertexElementType.Normal) == null) PolygonModifier.GenerateNormal(mesh);
+
+                    // Only generate UVs if they don't exist
+                    if (mesh.GetElement(VertexElementType.UV) == null) PolygonModifier.GenerateUV(mesh);
+
+                    // Apply material
+                    n.Material = newMaterial;
+                }
+
+                return true;
+            });
+
+            // Prepare output path
+            var filename = $"{Guid.NewGuid()}.glb";
+            var outputDir = Path.Combine(_environment.WebRootPath, "uploads", "previews");
+            Directory.CreateDirectory(outputDir);
+            var outputPath = Path.Combine(outputDir, filename);
+
+            // Save as GLB with embedded assets
+            var saveOptions = new GltfSaveOptions(FileFormat.GLTF2_Binary)
+            {
+                EmbedAssets = true,
+                SaveExtras = false,
+                FlipTexCoordV = true
+            };
+
+            scene.Save(outputPath, saveOptions);
+
+            return filename;
+        }
+        finally
+        {
+            // Cleanup temporary files
+            if (Directory.Exists(tempPath))
+                try
+                {
+                    Directory.Delete(tempPath, true);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
         }
     }
 }

@@ -17,4 +17,6 @@ export default interface Asset {
     fileUrl?: string;
     artistName?: string;
     createdAt?: string;
+    preview?: string;
+    previewUrl?: string;
 }

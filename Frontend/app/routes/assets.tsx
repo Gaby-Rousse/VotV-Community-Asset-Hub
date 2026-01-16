@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {Suspense, useEffect, useState} from "react";
 import {Link} from "react-router";
 import {useAuth} from '~/context/AuthContext';
 import {apiCall, downloadFile, GenerateSocial} from "~/tsx/functions";
@@ -6,7 +6,17 @@ import type Artist from "~/models/interfaces/Artist";
 import {ArtistDropdown, ArtistForm, FetchArtist, FetchArtists} from "~/tsx/artists";
 import type Asset from "~/models/interfaces/Asset";
 import ItemEnum from "~/models/enums/ItemEnum";
+import {Canvas} from '@react-three/fiber';
+import {OrbitControls, useGLTF} from '@react-three/drei';
 
+
+export async function clientLoader() {
+    return {};
+}
+
+export async function loader() {
+    return null;
+}
 
 //https://www.convex.dev/typescript/core-concepts/data-structures/typescript-dictionary
 interface DictionaryType {
@@ -41,19 +51,32 @@ export default function Assets() {
                 <Nav isAuthenticated={isAuthenticated} isNavigating={isNavigating} toggleNavigating={toggleNavigating}
                      selectedButton={selectedButton}
                      setSelectedButton={setSelectedButton}></Nav>
-                {isNavigating ? (
+                {
+                    selectedButton === "Radio" || selectedButton === "TV" ? (
+                        <VCBAdvertisement isNavigating={isNavigating}/>) : isNavigating ? (
                         selectedButton === "Artists" ? (
-                            <FetchArtists setSelectedArtist={setSelectedArtist} setIsNavigating={setIsNavigating}/>) : (
-                            <FetchAssets item={labelDictionary[selectedButton]}
-                                         setIsNavigating={setIsNavigating} setSelectedAsset={setSelectedAsset}/>)
-                    ) :
-                    (selectedButton === "Artists" ? (
-                            <ArtistForm key={selectedArtist?.id ?? "new-artist"} setIsNavigating={setIsNavigating}
-                                        setSelectedArtist={setSelectedArtist}
-                                        artist={selectedArtist}/>) : (
-                            <AssetForm key={selectedAsset?.id ?? "new-asset"} item={labelDictionary[selectedButton]}
-                                       asset={selectedAsset}
-                                       setIsNavigating={setIsNavigating}/>)
+                            <FetchArtists setSelectedArtist={setSelectedArtist} setIsNavigating={setIsNavigating}/>
+                        ) : (
+                            <FetchAssets
+                                item={labelDictionary[selectedButton]}
+                                setIsNavigating={setIsNavigating}
+                                setSelectedAsset={setSelectedAsset}
+                            />
+                        )
+                    ) : selectedButton === "Artists" ? (
+                        <ArtistForm
+                            key={selectedArtist?.id ?? "new-artist"}
+                            setIsNavigating={setIsNavigating}
+                            setSelectedArtist={setSelectedArtist}
+                            artist={selectedArtist}
+                        />
+                    ) : (
+                        <AssetForm
+                            key={selectedAsset?.id ?? "new-asset"}
+                            item={labelDictionary[selectedButton]}
+                            asset={selectedAsset}
+                            setIsNavigating={setIsNavigating}
+                        />
                     )
                 }
             </div>
@@ -89,6 +112,11 @@ export function Nav({selectedButton, setSelectedButton, toggleNavigating, isNavi
                     <ComputerButton text="Rugs" selectedButton={selectedButton} setSelectedButton={setSelectedButton}/>
                     <ComputerButton text="Stickers" selectedButton={selectedButton}
                                     setSelectedButton={setSelectedButton}/>
+                    <ComputerButton text="Radio" selectedButton={selectedButton}
+                                    setSelectedButton={setSelectedButton}/>
+                    <ComputerButton text="TV" selectedButton={selectedButton}
+                                    setSelectedButton={setSelectedButton}/>
+
                     <div className="flex flex-row ml-auto shrink-0">
                         {isAuthenticated ? (<button
                             onClick={() => toggleNavigating()}
@@ -342,6 +370,13 @@ function AssetForm({item, asset, setIsNavigating}: {
                     <button className="dos url hover:cursor-pointer border w-8/10" type="submit">Submit!</button>
                 </div>
 
+                {asset == null && item == 5 ? (<div>
+                    <div className="dos mt-1">Note on 3D Models:</div>
+                    <div className="dos">If you upload a megapack containing several 3D models, only the first 3D model
+                        will be previewable.
+                    </div>
+                </div>) : ("")}
+
             </form>
         </>
     );
@@ -364,6 +399,7 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
     const [asset, setAsset] = useState<Asset | null>();
     const [askConfirmation, setAskConfirmation] = useState(false);
     const {isAuthenticated, isAdmin, id: userId} = useAuth();
+    const [isClient, setIsClient] = useState(false);
     useEffect(() => {
         FetchAsset(id)
             .then(asset => {
@@ -375,6 +411,10 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
             })
             .catch(err => console.error(err));
     }, [id]);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     async function deleteAsset(id: number) {
         let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${id}`, new FormData(), "DELETE");
@@ -402,10 +442,24 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                         </button>
                     </div>
                     <div className="flex flex-row w-full h-full overflow-hidden">
-                        <div className="w-3/4 border-r flex flex-col h-full min-h-0"> {/* added min-h-0 */}
-                            <div className="shrink-0">
-                                <img className="h-94.5 w-full object-contain m-auto" src={asset?.thumbnailUrl}/>
-                            </div>
+                        <div className="w-3/4 border-r flex flex-col h-full min-h-0">
+                            {asset?.previewUrl != null && isClient ? (
+                                    <div className="h-94.5">
+                                        <Canvas camera={{position: [0, 0, 50], fov: 50}}>
+                                            < ambientLight intensity={0.5}/>
+                                            <directionalLight position={[5, 5, 5]}/>
+                                            <Suspense fallback={null}>
+                                                <Model url={asset.previewUrl}/>
+                                            </Suspense>
+                                            <OrbitControls autoRotate/>
+                                        </Canvas>
+                                    </div>
+                                ) :
+                                (<div className="shrink-0">
+                                        <img className="h-94.5 w-full object-contain m-auto" src={asset?.thumbnailUrl}/>
+                                    </div>
+                                )}
+
 
                             <div className="flex p-1 flex-1 flex-col border-t min-h-0">
                                 <div className="dos shrink-0">Description:</div>
@@ -502,3 +556,40 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
     )
 }
 
+function Model({url}: { url: string }) {
+    const {scene} = useGLTF(url);
+    return <primitive object={scene}/>;
+}
+
+function VCBAdvertisement({isNavigating}: { isNavigating: boolean }) {
+    return (
+        <>
+            <div className="flex my-auto flex-col">
+                <div className="dos text-center">
+                    {isNavigating ? ("Searching for audio or video?") : ("Want to add audio or video?")}
+                </div>
+                <div className="mx-auto flex flex-row gap-2 ">
+                    <div className="dos">You should visit</div>
+                    <a href="" target="_blank" className="title url text-center">VotV
+                        Community Broadcaster
+                    </a>
+                    <div className="dos">!</div>
+                </div>
+                <div className="dos text-center">VotV Community Broadcaster is a website that stores video and audio
+                    and streams
+                    it over the internet for Voices of the Void players!
+                </div>
+                <div className="title text-center text-2xl">Screenshots</div>
+                <div className="flex gap-5 md:gap-2 flex-col md:flex-row">
+                    <img className="w-full md:w-1/3" src="https://votvbroadcast.com/images/vcb_home.png"/>
+                    <img className="w-full md:w-1/3" src="https://votvbroadcast.com/images/vcb_upload.png?v=2"/>
+                    <img className="w-full md:w-1/3" src="https://votvbroadcast.com/images/vcb_ingame.png"/>
+                </div>
+                <a href="https://votvbroadcast.com/" target="_blank"
+                   className="dos my-2 url border text-center p-2 mx-auto w-50">Visit
+                    Now!</a>
+            </div>
+
+        </>
+    )
+}

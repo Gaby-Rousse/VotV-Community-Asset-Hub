@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
 
@@ -75,16 +76,25 @@ if (app.Environment.IsDevelopment())
 
 
 app.UseCors(MyAllowSpecificOrigins);
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".glb"] = "model/gltf-binary";
+provider.Mappings[".gltf"] = "model/gltf+json";
 
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider,
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream"
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 
 //app.MapIdentityApi<IdentityUser>();
 
-app.UseStaticFiles();
 
 //Step 3: https://medium.com/@roshanj100/users-and-roles-seeding-in-asp-net-core-identity-with-entity-framework-core-a-step-by-step-guide-28e6f76a18db
 using (var scope = app.Services.CreateScope())

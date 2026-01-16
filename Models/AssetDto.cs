@@ -28,6 +28,12 @@ public class AssetDto : Timestamp
 
     public string ArtistName { get; set; }
 
+    public string? Preview { get; set; }
+
+    public string PreviewUrl => string.IsNullOrEmpty(Preview)
+        ? "NOT_AVAILABLE"
+        : $"http://10.0.0.131:5130/uploads/previews/{Preview}";
+
     public string ThumbnailUrl => string.IsNullOrEmpty(Thumbnail)
         ? "http://10.0.0.131:5130/uploads/thumbnails/picture.png"
         : $"http://10.0.0.131:5130/uploads/thumbnails/{Thumbnail}";

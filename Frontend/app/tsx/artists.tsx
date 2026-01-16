@@ -305,12 +305,13 @@ export function DeleteArtist({id, setId, setDeleteArtist, setTrigger}: {
         <>
             <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 bg-black/50 z-10 ">
                 <div className="flex flex-col mx-auto p-3 my-auto w-full h-full sm:w-1/3 sm:h-1/3 bg-black border-2">
-                    <div className="text-center text-2xl  line-clamp-2 dos">Are you sure you want to
-                        delete <br/>{artist?.name}
-                        <br/> ?
+                    <div className="text-center text-2xl dos">Are you sure you want to
+                        delete <br/>
+                        <div className="line-clamp-1">{artist?.name}</div>
+                        ?
                     </div>
                     <div className="dos red text-center mt-auto mb-auto text-xl">If you delete this artist, all artworks
-                        tagged with by this artist will be tagged as "Server"
+                        tagged with this artist will be tagged as "Server"
                     </div>
                     <div className="flex w-full justify-between mt-auto flex-row">
                         <button onClick={() => {
