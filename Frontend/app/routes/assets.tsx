@@ -8,6 +8,7 @@ import type Asset from "~/models/interfaces/Asset";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {Canvas} from '@react-three/fiber';
 import {OrbitControls, useGLTF} from '@react-three/drei';
+import {LoadingProvider, useLoading} from "~/context/LoadingContext";
 
 
 export async function clientLoader() {
@@ -44,6 +45,7 @@ export default function Assets() {
         setSelectedAsset(null);
         setIsNavigating(!isNavigating);
     };
+    const {isLoading, setIsLoading} = useLoading();
 
     return (
         <>
@@ -159,12 +161,14 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
     const [query, setQuery] = useState("");
     const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
     const [selectedFilter, setSelectedFilter] = useState(0);
+    const {isLoading, setIsLoading} = useLoading();
 
 
     useEffect(() => {
+        setIsLoading(true);
         apiCall("http://10.0.0.131:5130/api/Assets?item=" + item, null).then(res => res.json())
             .then(data => setAssets(data))
-            .catch(err => console.error('Failed to fetch assets:', err));
+            .catch(err => console.error('Failed to fetch assets:', err)).finally(() => setIsLoading(false));
     }, [item, trigger]);
 
     useEffect(() => {
@@ -238,6 +242,8 @@ function AssetForm({item, asset, setIsNavigating}: {
     setIsNavigating: (value: boolean) => void
 }) {
 
+    const {isLoading, setIsLoading} = useLoading();
+    
     const [width, setWidth] = useState("w-50");
     const [height, setHeight] = useState("h-50");
     const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("http://10.0.0.131:5130/uploads/thumbnails/picture.png"))
@@ -286,10 +292,11 @@ function AssetForm({item, asset, setIsNavigating}: {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
+        setIsLoading(true)
         const formData = new FormData(e.currentTarget);
         if (artistId == 0) {
             setError("Artist is required.")
+            setIsLoading(false);
             return;
         }
 
@@ -300,21 +307,34 @@ function AssetForm({item, asset, setIsNavigating}: {
 
         if (asset != null) {
             formData.set("id", asset.id.toString())
+            try{
             let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${asset.id}`, formData, "PUT");
             if (response.ok) {
                 setIsNavigating(true);
             } else {
                 let parsedResponse = await response.json();
                 setError(parsedResponse.error);
+            }}
+            finally {
+                setIsLoading(false);
             }
         } else {
-            let response = await apiCall("http://10.0.0.131:5130/api/Assets", formData, "POST");
-            if (response.ok) {
-                setIsNavigating(true);
-            } else {
-                let parsedResponse = await response.json();
-                setError(parsedResponse.error);
+            try
+            {
+                let response = await apiCall("http://10.0.0.131:5130/api/Assets", formData, "POST");
+                if (response.ok) {
+                    setIsLoading(false)
+                    setIsNavigating(true);
+                } else {
+                    setIsLoading(false)
+                    let parsedResponse = await response.json();
+                    setError(parsedResponse.error);
+                }
             }
+            finally {
+                setIsLoading(false);
+            }
+           
         }
 
 
@@ -429,8 +449,9 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
     const [asset, setAsset] = useState<Asset | null>();
     const [askConfirmation, setAskConfirmation] = useState(false);
     const {isAuthenticated, isAdmin, id: userId} = useAuth();
-    const [isClient, setIsClient] = useState(false);
+    const {isLoading, setIsLoading} = useLoading();
     useEffect(() => {
+        setIsLoading(true);
         FetchAsset(id)
             .then(asset => {
                 setAsset(asset);
@@ -439,12 +460,8 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
             .then(artist => {
                 setArtist(artist);
             })
-            .catch(err => console.error(err));
+            .catch(err => console.error(err)).finally(() => setIsLoading(false));
     }, [id]);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
 
     async function deleteAsset(id: number) {
         let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${id}`, new FormData(), "DELETE");
@@ -473,7 +490,7 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                     </div>
                     <div className="flex flex-row w-full h-full overflow-hidden">
                         <div className="w-3/4 border-r flex flex-col h-full min-h-0">
-                            {asset?.previewUrl != null && isClient ? (
+                            {asset?.previewUrl != null ? (
                                     <div className="h-94.5">
                                         <Canvas camera={{position: [0, 0, 50], fov: 50}}>
                                             < ambientLight intensity={0.5}/>
@@ -623,3 +640,4 @@ function VCBAdvertisement({isNavigating}: { isNavigating: boolean }) {
         </>
     )
 }
+

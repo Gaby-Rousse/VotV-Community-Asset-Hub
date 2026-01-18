@@ -189,6 +189,8 @@ public class AssetsController : ControllerBase
         DeleteFile(
             Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "thumbnails", asset.Thumbnail ?? ""));
         DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "files", asset.Filename ?? ""));
+        DeleteFile(
+            Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "previews", asset.Preview ?? ""));
         return NoContent();
     }
 

@@ -4,6 +4,7 @@ import type {Route} from "./+types/root";
 import "./app.css";
 import {Nav} from "~/routes/_index";
 import {AuthProvider} from "~/context/AuthContext";
+import {LoadingProvider} from "~/context/LoadingContext";
 
 export const links: Route.LinksFunction = () => [
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
@@ -40,7 +41,9 @@ export default function App() {
 
     return (
         <AuthProvider>
+            <LoadingProvider>
             <Outlet/>
+            </LoadingProvider>
         </AuthProvider>
     );
 }

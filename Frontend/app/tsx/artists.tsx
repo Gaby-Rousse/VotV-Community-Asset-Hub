@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from "react";
 import type Artist from "~/models/interfaces/Artist";
 import {apiCall, GenerateSocial} from "~/tsx/functions";
 import {useAuth} from "~/context/AuthContext";
+import {useLoading} from "~/context/LoadingContext";
 
 export function ArtistDropdown({onSelect, initialArtistId}: {
     onSelect: (id: number) => void;
@@ -98,6 +99,8 @@ export function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
     const [socials, setSocials] = useState<string[]>(artist?.socials ?? []);
     const [preview, setPreview] = useState<string>(artist?.pfpUrl ?? "http://10.0.0.131:5130/uploads/avatars/defaultPicture.png")
     const [error, setError] = useState("");
+    
+    const {isLoading, setIsLoading} = useLoading();
 
     useEffect(() => {
         setSocials(artist?.socials ?? []);
@@ -132,23 +135,37 @@ export function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
         }
 
         if (artist != null) {
+            try {
+            setIsLoading(true)
             formData.set("id", artist.id.toString())
             formData.set("pfp", artist.pfp ?? "")
-            let response = await apiCall(`http://10.0.0.131:5130/api/Artists/${artist.id}`, formData, "PUT");
-            if (response.ok) {
-                setIsNavigating(true);
-                setSelectedArtist(null);
-            } else {
-                let parsedResponse = await response.json()
-                setError(parsedResponse.error);
+           
+                let response = await apiCall(`http://10.0.0.131:5130/api/Artists/${artist.id}`, formData, "PUT");
+                if (response.ok) {
+                    setIsNavigating(true);
+                    setSelectedArtist(null);
+                } else {
+                    let parsedResponse = await response.json()
+                    setError(parsedResponse.error);
+                }
+            }
+            finally {
+                setIsLoading(false)
             }
         } else {
-            let response = await apiCall("http://10.0.0.131:5130/api/Artists", formData);
-            if (response.ok) {
-                setIsNavigating(true);
-            } else {
-                let parsedResponse = await response.json()
-                setError(parsedResponse.error);
+            try {
+
+                setIsLoading(true)
+                let response = await apiCall("http://10.0.0.131:5130/api/Artists", formData);
+                if (response.ok) {
+                    setIsNavigating(true);
+                } else {
+                    let parsedResponse = await response.json()
+                    setError(parsedResponse.error);
+                }
+            }
+            finally {
+                setIsLoading(false)
             }
         }
 
@@ -233,8 +250,11 @@ export async function FetchArtist(id: number): Promise<Artist> {
 export function ShowArtist({id, setId}: { id: number, setId: (value: number) => void }) {
     const [artist, setArtist] = useState<Artist | null>();
     useEffect(() => {
-        FetchArtist(id).then(data => setArtist(data));
+        setIsLoading(true)
+        FetchArtist(id).then(data => setArtist(data)).finally(() => setIsLoading(false));
     }, [id]);
+
+    const {isLoading, setIsLoading} = useLoading();
 
     return (
         <>
@@ -284,9 +304,11 @@ export function DeleteArtist({id, setId, setDeleteArtist, setTrigger}: {
     setDeleteArtist: (value: boolean) => void,
     setTrigger: (value: number) => void
 }) {
+    const {isLoading, setIsLoading} = useLoading();
     const [artist, setArtist] = useState<Artist | null>();
     useEffect(() => {
-        FetchArtist(id).then(data => setArtist(data));
+        setIsLoading(true);
+        FetchArtist(id).then(data => setArtist(data)).finally(() => setIsLoading(false));
     }, [id]);
 
     async function sendDelete(id: number) {
@@ -341,11 +363,13 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
     const [artistId, setArtistId] = useState(0);
     const [deleteArtist, setDeleteArtist] = useState(false);
     const [trigger, setTrigger] = useState(0);
+    const {isLoading, setIsLoading} = useLoading();
 
     useEffect(() => {
+        setIsLoading(true);
         apiCall("http://10.0.0.131:5130/api/Artists", null).then(res => res.json())
             .then(data => setArtists(data))
-            .catch(err => console.error('Failed to fetch artists:', err));
+            .catch(err => console.error('Failed to fetch artists:', err)).finally(() => setIsLoading(false));
     }, [trigger]);
 
     return (
