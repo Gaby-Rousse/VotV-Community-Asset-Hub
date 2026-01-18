@@ -1,4 +1,5 @@
 import {createContext, useContext, useEffect, useState} from 'react';
+import {apiCall} from "~/tsx/functions";
 
 const AuthContext = createContext({
     isAuthenticated: false,
@@ -20,7 +21,7 @@ export const AuthProvider = ({children}: any) => {
     }, []);
 
     function checkAuth() {
-        fetch('http://10.0.0.131:5130/api/Accounts/status', {credentials: "include"})
+        apiCall('/api/Accounts/status', null)
             .then(res => res.json())
             .then(data => {
                 setIsAuthenticated(data.isAuthenticated);

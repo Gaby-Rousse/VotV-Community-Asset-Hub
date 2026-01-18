@@ -22,16 +22,18 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
 // Add services to the container.
-
-builder.Services.AddCors(options =>
+if (builder.Environment.IsDevelopment())
 {
-    //archi gossant
-    options.AddPolicy(MyAllowSpecificOrigins,
-        policy =>
-        {
-            policy.WithOrigins("http://10.0.0.131:5173").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
-        });
-});
+    builder.Services.AddCors(options =>
+    {
+        //archi gossant
+        options.AddPolicy(MyAllowSpecificOrigins,
+            policy =>
+            {
+                policy.WithOrigins("http://10.0.0.131:5173").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+            });
+    });
+}
 
 builder.Services.AddControllers();
 
@@ -75,7 +77,10 @@ if (app.Environment.IsDevelopment())
 //app.UseHttpsRedirection();
 
 
-app.UseCors(MyAllowSpecificOrigins);
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors(MyAllowSpecificOrigins);
+}
 var provider = new FileExtensionContentTypeProvider();
 provider.Mappings[".glb"] = "model/gltf-binary";
 provider.Mappings[".gltf"] = "model/gltf+json";

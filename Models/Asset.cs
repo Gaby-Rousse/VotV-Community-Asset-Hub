@@ -49,11 +49,11 @@ public class Asset : Timestamp
 
     public string PreviewUrl => string.IsNullOrEmpty(Preview)
         ? "NOT_AVAILABLE"
-        : $"http://10.0.0.131:5130/uploads/previews/{Preview}";
+        : $"/uploads/previews/{Preview}";
 
     public string ThumbnailUrl => string.IsNullOrEmpty(Thumbnail)
-        ? "http://10.0.0.131:5130/uploads/thumbnails/picture.png"
-        : $"http://10.0.0.131:5130/uploads/thumbnails/{Thumbnail}";
+        ? "/uploads/thumbnails/picture.png"
+        : $"/uploads/thumbnails/{Thumbnail}";
 
-    public string FileUrl => $"http://10.0.0.131:5130/uploads/files/{Filename}";
+    public string FileUrl => $"/uploads/files/{Filename}";
 }

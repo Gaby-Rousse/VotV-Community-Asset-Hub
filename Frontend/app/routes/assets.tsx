@@ -166,7 +166,7 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
 
     useEffect(() => {
         setIsLoading(true);
-        apiCall("http://10.0.0.131:5130/api/Assets?item=" + item, null).then(res => res.json())
+        apiCall("/api/Assets?item=" + item, null).then(res => res.json())
             .then(data => setAssets(data))
             .catch(err => console.error('Failed to fetch assets:', err)).finally(() => setIsLoading(false));
     }, [item, trigger]);
@@ -246,7 +246,7 @@ function AssetForm({item, asset, setIsNavigating}: {
     
     const [width, setWidth] = useState("w-50");
     const [height, setHeight] = useState("h-50");
-    const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("http://10.0.0.131:5130/uploads/thumbnails/picture.png"))
+    const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("/uploads/thumbnails/picture.png"))
     const [artistId, setArtistId] = useState(asset?.artistId ?? 0);
     const [selectedOption, setSelectedOption] = useState(asset?.type?.toString() ?? "1");
     const [error, setError] = useState("");
@@ -308,7 +308,7 @@ function AssetForm({item, asset, setIsNavigating}: {
         if (asset != null) {
             formData.set("id", asset.id.toString())
             try{
-            let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${asset.id}`, formData, "PUT");
+            let response = await apiCall(`/api/Assets/${asset.id}`, formData, "PUT");
             if (response.ok) {
                 setIsNavigating(true);
             } else {
@@ -321,7 +321,7 @@ function AssetForm({item, asset, setIsNavigating}: {
         } else {
             try
             {
-                let response = await apiCall("http://10.0.0.131:5130/api/Assets", formData, "POST");
+                let response = await apiCall("/api/Assets", formData, "POST");
                 if (response.ok) {
                     setIsLoading(false)
                     setIsNavigating(true);
@@ -414,7 +414,7 @@ function AssetForm({item, asset, setIsNavigating}: {
                 <div className="flex flex-row gap-1">
                     <button onClick={() => {
                         setArtistId(0);
-                        setPreview("http://10.0.0.131:5130/uploads/thumbnails/picture.png")
+                        setPreview("/uploads/thumbnails/picture.png")
                     }} className="dos url hover:cursor-pointer border w-2/10" type="reset">Reset
                     </button>
                     <button className="dos url hover:cursor-pointer border w-8/10" type="submit">Submit!</button>
@@ -433,7 +433,7 @@ function AssetForm({item, asset, setIsNavigating}: {
 }
 
 export async function FetchAsset(id: number): Promise<Asset> {
-    const response = await apiCall(`http://10.0.0.131:5130/api/Assets/${id}`, null);
+    const response = await apiCall(`/api/Assets/${id}`, null);
     const data = await response.json();
     return data;
 }
@@ -464,7 +464,7 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
     }, [id]);
 
     async function deleteAsset(id: number) {
-        let response = await apiCall(`http://10.0.0.131:5130/api/Assets/${id}`, new FormData(), "DELETE");
+        let response = await apiCall(`/api/Assets/${id}`, new FormData(), "DELETE");
         if (response.ok) {
             setTrigger(Date.now())
             setId(0)

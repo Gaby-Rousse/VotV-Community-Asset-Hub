@@ -37,7 +37,7 @@ export default function login() {
         setPreviousValue({...previousValue, username: username})
 
 
-        let response = await apiCall("http://10.0.0.131:5130/api/Accounts/login", formData);
+        let response = await apiCall("/api/Accounts/login", formData);
         if (response.ok) {
             navigate("/");
             refreshAuth();

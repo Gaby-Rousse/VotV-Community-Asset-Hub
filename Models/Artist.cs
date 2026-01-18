@@ -13,6 +13,6 @@ public class Artist : Timestamp
     public string? Pfp { get; set; }
 
     public string PfpUrl => string.IsNullOrEmpty(Pfp)
-        ? "http://10.0.0.131:5130/uploads/avatars/defaultPicture.png"
-        : $"http://10.0.0.131:5130/uploads/avatars/{Pfp}";
+        ? "/uploads/avatars/defaultPicture.png"
+        : $"/uploads/avatars/{Pfp}";
 }

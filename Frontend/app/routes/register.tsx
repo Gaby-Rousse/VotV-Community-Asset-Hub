@@ -35,7 +35,7 @@ export default function register() {
         formData.set("email", "nope")
 
 
-        let response = await apiCall("http://10.0.0.131:5130/api/Accounts/register", formData);
+        let response = await apiCall("/api/Accounts/register", formData);
         if (response.ok) {
             navigate("/login");
             refreshAuth();

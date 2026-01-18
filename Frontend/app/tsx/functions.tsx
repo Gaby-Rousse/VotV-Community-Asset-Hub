@@ -14,8 +14,10 @@ import {GiBattleTank} from "react-icons/gi";
 import {CiGlobe} from "react-icons/ci";
 import React from "react";
 
-export async function apiCall(url: string, formData: FormData | null, method: string = "POST"): Promise<any> {
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+export async function apiCall(endpoint: string, formData: FormData | null, method: string = "POST"): Promise<any> {
 
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
     if (formData != null) {
         return await fetch(url, {
             credentials: "include",

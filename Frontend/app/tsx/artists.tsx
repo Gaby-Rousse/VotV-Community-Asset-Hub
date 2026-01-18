@@ -15,7 +15,7 @@ export function ArtistDropdown({onSelect, initialArtistId}: {
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        apiCall("http://10.0.0.131:5130/api/Artists", null)
+        apiCall("/api/Artists", null)
             .then(res => res.json())
             .then(setArtists);
     }, []);
@@ -97,14 +97,14 @@ export function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
     setSelectedArtist: (artist: Artist | null) => void
 }) {
     const [socials, setSocials] = useState<string[]>(artist?.socials ?? []);
-    const [preview, setPreview] = useState<string>(artist?.pfpUrl ?? "http://10.0.0.131:5130/uploads/avatars/defaultPicture.png")
+    const [preview, setPreview] = useState<string>(artist?.pfpUrl ?? "/uploads/avatars/defaultPicture.png")
     const [error, setError] = useState("");
     
     const {isLoading, setIsLoading} = useLoading();
 
     useEffect(() => {
         setSocials(artist?.socials ?? []);
-        setPreview(artist?.pfpUrl ?? "http://10.0.0.131:5130/uploads/avatars/defaultPicture.png");
+        setPreview(artist?.pfpUrl ?? "/uploads/avatars/defaultPicture.png");
     }, [artist]);
 
     const addField = () => {
@@ -140,7 +140,7 @@ export function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
             formData.set("id", artist.id.toString())
             formData.set("pfp", artist.pfp ?? "")
            
-                let response = await apiCall(`http://10.0.0.131:5130/api/Artists/${artist.id}`, formData, "PUT");
+                let response = await apiCall(`/api/Artists/${artist.id}`, formData, "PUT");
                 if (response.ok) {
                     setIsNavigating(true);
                     setSelectedArtist(null);
@@ -156,7 +156,7 @@ export function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
             try {
 
                 setIsLoading(true)
-                let response = await apiCall("http://10.0.0.131:5130/api/Artists", formData);
+                let response = await apiCall("/api/Artists", formData);
                 if (response.ok) {
                     setIsNavigating(true);
                 } else {
@@ -242,7 +242,7 @@ export function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
 }
 
 export async function FetchArtist(id: number): Promise<Artist> {
-    const response = await apiCall(`http://10.0.0.131:5130/api/Artists/${id}`, null);
+    const response = await apiCall(`/api/Artists/${id}`, null);
     const data = await response.json();
     return data;
 }
@@ -312,7 +312,7 @@ export function DeleteArtist({id, setId, setDeleteArtist, setTrigger}: {
     }, [id]);
 
     async function sendDelete(id: number) {
-        let response = await apiCall(`http://10.0.0.131:5130/api/Artists/${id}`, new FormData(), "DELETE");
+        let response = await apiCall(`/api/Artists/${id}`, new FormData(), "DELETE");
         if (response.ok) {
             setDeleteArtist(false)
             setId(0)
@@ -367,7 +367,7 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
 
     useEffect(() => {
         setIsLoading(true);
-        apiCall("http://10.0.0.131:5130/api/Artists", null).then(res => res.json())
+        apiCall("/api/Artists", null).then(res => res.json())
             .then(data => setArtists(data))
             .catch(err => console.error('Failed to fetch artists:', err)).finally(() => setIsLoading(false));
     }, [trigger]);

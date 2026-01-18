@@ -33,7 +33,7 @@ export default function account() {
         let option = parseInt(formData.get("Option")?.toString() ?? "")
 
         if (option == 1) {
-            let response = await apiCall("http://10.0.0.131:5130/api/Accounts/logout", null);
+            let response = await apiCall("/api/Accounts/logout", null);
             if (response.ok) {
                 navigate("/");
                 refreshAuth();
