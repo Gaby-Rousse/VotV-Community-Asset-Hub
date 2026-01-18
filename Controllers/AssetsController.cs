@@ -1,9 +1,9 @@
+
 using Aspose.ThreeD;
 using Aspose.ThreeD.Entities;
 using Aspose.ThreeD.Formats;
 using Aspose.ThreeD.Shading;
 using Aspose.ThreeD.Utilities;
-using Aspose.Zip;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -261,27 +261,263 @@ public class AssetsController : ControllerBase
     }
 
     //AI GENERATED
-    public async Task<string> ConvertAndSaveGlb(string zipPath)
+public async Task<string> ConvertAndSaveGlb(string zipPath)
+{
+    TrialException.SuppressTrialException = true;
+
+    var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    Directory.CreateDirectory(tempPath);
+
+    try
     {
-        TrialException.SuppressTrialException = true;
+        // Extract ZIP contents
+        System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, tempPath, true);
 
-        var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempPath);
+        // Find the OBJ file
+        var objFile = Directory.GetFiles(tempPath, "*.obj", SearchOption.AllDirectories).FirstOrDefault();
+        if (objFile == null)
+            throw new FileNotFoundException("No .obj file found in the ZIP archive.");
 
-        try
+        // Parse MTL file for material->texture mappings
+        var mtlMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var mtlFile = Directory.GetFiles(tempPath, "*.mtl", SearchOption.AllDirectories).FirstOrDefault();
+        
+        if (mtlFile != null)
         {
-            // Extract ZIP contents
-            using (var archive = new Archive(zipPath))
+            var mtlContent = await System.IO.File.ReadAllTextAsync(mtlFile);
+            var mtlLines = mtlContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            string? currentMaterial = null;
+            
+            foreach (var line in mtlLines)
             {
-                archive.ExtractToDirectory(tempPath);
+                var trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#"))
+                    continue;
+                    
+                if (trimmed.StartsWith("newmtl "))
+                {
+                    currentMaterial = trimmed.Substring(7).Trim();
+                }
+                else if (currentMaterial != null && trimmed.StartsWith("map_Kd "))
+                {
+                    var texturePath = trimmed.Substring(7).Trim();
+                    var textureName = Path.GetFileName(texturePath);
+                    if (!mtlMappings.ContainsKey(currentMaterial))
+                        mtlMappings[currentMaterial] = textureName;
+                }
             }
+        }
 
-            // Find the OBJ file
-            var objFile = Directory.GetFiles(tempPath, "*.obj", SearchOption.AllDirectories).FirstOrDefault();
-            if (objFile == null)
-                throw new FileNotFoundException("No .obj file found in the ZIP archive.");
+        // Load textures
+        var textureFiles = Directory.GetFiles(tempPath, "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !Path.GetFileName(f).Equals("icon.png", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-            // Load the scene with proper options
+        var textureCache = new Dictionary<string, Texture>(StringComparer.OrdinalIgnoreCase);
+        foreach (var texFile in textureFiles)
+        {
+            var texBytes = await System.IO.File.ReadAllBytesAsync(texFile);
+            var texName = Path.GetFileName(texFile);
+            textureCache[texName] = new Texture { Content = texBytes, FileName = texName };
+        }
+
+        // CRITICAL FIX: Manually split OBJ by material groups
+        Console.WriteLine("\n=== Analyzing OBJ structure ===");
+        var objContent = await System.IO.File.ReadAllTextAsync(objFile);
+        var objLines = objContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        var usemtlLines = objLines.Where(l => l.Trim().StartsWith("usemtl ")).ToList();
+        Console.WriteLine($"Found {usemtlLines.Count} material switches");
+        
+        Scene scene;
+        
+        // Only split if we have multiple DIFFERENT materials
+        var uniqueMaterials = usemtlLines
+            .Select(l => l.Trim().Substring(7).Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        
+        Console.WriteLine($"Unique materials: {string.Join(", ", uniqueMaterials)}");
+        
+        if (uniqueMaterials.Count > 1)
+        {
+            Console.WriteLine("Multi-material OBJ detected - splitting into separate OBJ files per material");
+            
+            // First, collect all vertex data (shared by all materials)
+            var allVertices = new List<string>();
+            var allTexCoords = new List<string>();
+            var allNormals = new List<string>();
+            var headerLines = new List<string>();
+            
+            // Parse OBJ and split faces by material
+            var materialFaces = new Dictionary<string, List<string>>();
+            var currentMat = "default";
+            
+            foreach (var line in objLines)
+            {
+                var trimmed = line.Trim();
+                
+                if (trimmed.StartsWith("mtllib ") || trimmed.StartsWith("#"))
+                {
+                    headerLines.Add(line);
+                }
+                else if (trimmed.StartsWith("v "))
+                {
+                    allVertices.Add(line);
+                }
+                else if (trimmed.StartsWith("vt "))
+                {
+                    allTexCoords.Add(line);
+                }
+                else if (trimmed.StartsWith("vn "))
+                {
+                    allNormals.Add(line);
+                }
+                else if (trimmed.StartsWith("usemtl "))
+                {
+                    currentMat = trimmed.Substring(7).Trim();
+                    if (!materialFaces.ContainsKey(currentMat))
+                        materialFaces[currentMat] = new List<string>();
+                }
+                else if (trimmed.StartsWith("f "))
+                {
+                    if (!materialFaces.ContainsKey(currentMat))
+                        materialFaces[currentMat] = new List<string>();
+                    materialFaces[currentMat].Add(line);
+                }
+            }
+            
+            Console.WriteLine($"Vertex data: {allVertices.Count} vertices, {allTexCoords.Count} UVs, {allNormals.Count} normals");
+            Console.WriteLine($"Split into {materialFaces.Count} material groups:");
+            foreach (var mat in materialFaces.Keys)
+                Console.WriteLine($"  - {mat} ({materialFaces[mat].Count} faces)");
+            
+            // Create separate OBJ file for each material
+            var splitObjFiles = new List<(string material, string objPath)>();
+            
+            foreach (var kvp in materialFaces)
+            {
+                var matName = kvp.Key;
+                var faces = kvp.Value;
+                
+                if (matName == "default" || faces.Count == 0)
+                    continue; // Skip default/empty groups
+                
+                var splitObjPath = Path.Combine(tempPath, $"split_{matName}.obj");
+                var splitObjContent = new List<string>();
+                
+                // Add header
+                splitObjContent.AddRange(headerLines);
+                
+                // Add ALL vertex data (needed for face indices to work)
+                splitObjContent.AddRange(allVertices);
+                splitObjContent.AddRange(allTexCoords);
+                splitObjContent.AddRange(allNormals);
+                
+                // Add material and faces
+                splitObjContent.Add($"usemtl {matName}");
+                splitObjContent.AddRange(faces);
+                
+                await System.IO.File.WriteAllLinesAsync(splitObjPath, splitObjContent);
+                splitObjFiles.Add((matName, splitObjPath));
+                Console.WriteLine($"  Created: split_{matName}.obj");
+            }
+            
+            // Load each split OBJ as a separate mesh
+            var loadOptions = new ObjLoadOptions
+            {
+                EnableMaterials = true,
+                FlipCoordinateSystem = true,
+                LookupPaths = new List<string> { tempPath }
+            };
+            
+            var combinedScene = new Scene();
+            
+            foreach (var (matName, splitPath) in splitObjFiles)
+            {
+                try
+                {
+                    var partScene = Scene.FromFile(splitPath, loadOptions);
+                    
+                    // Find the mesh and add it to combined scene
+                    partScene.RootNode.Accept(n =>
+                    {
+                        if (n.Entity is Mesh mesh)
+                        {
+                            // Generate normals/UVs if needed
+                            if (mesh.GetElement(VertexElementType.Normal) == null)
+                                PolygonModifier.GenerateNormal(mesh);
+                            if (mesh.GetElement(VertexElementType.UV) == null)
+                                PolygonModifier.GenerateUV(mesh);
+                            
+                            // Create node in combined scene
+                            var newNode = combinedScene.RootNode.CreateChildNode($"{matName}_mesh", mesh);
+                            
+                            // Find and apply texture
+                            Texture? tex = null;
+                            
+                            if (mtlMappings.TryGetValue(matName, out var texName))
+                                textureCache.TryGetValue(texName, out tex);
+                            
+                            if (tex == null)
+                            {
+                                var possibleNames = new[]
+                                {
+                                    $"diffuse_{matName}.png",
+                                    $"diffuse_{matName}.jpg",
+                                    $"{matName}.png",
+                                    $"{matName}.jpg",
+                                    $"{matName}_diffuse.png"
+                                };
+                                
+                                foreach (var name in possibleNames)
+                                {
+                                    if (textureCache.TryGetValue(name, out tex))
+                                        break;
+                                }
+                            }
+                            
+                            var pbrMat = new PbrMaterial
+                            {
+                                Name = matName,
+                                MetallicFactor = 0.0,
+                                RoughnessFactor = 0.5
+                            };
+                            
+                            if (tex != null)
+                            {
+                                pbrMat.AlbedoTexture = tex;
+                                pbrMat.Albedo = new Vector3(1.0, 1.0, 1.0);
+                                Console.WriteLine($"  ✓ {matName} → {tex.FileName}");
+                            }
+                            else
+                            {
+                                pbrMat.Albedo = new Vector3(0.8, 0.8, 0.8);
+                                Console.WriteLine($"  ⚠ {matName} → no texture found");
+                            }
+                            
+                            newNode.Material = pbrMat;
+                        }
+                        return true;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"  ✗ Failed to load {matName}: {ex.Message}");
+                }
+            }
+            
+            // Use the combined scene
+            scene = combinedScene;
+        }
+        else
+        {
+            // Single material or no material switches - use standard loading
+            Console.WriteLine($"Single material model ({uniqueMaterials.Count} unique material) - using standard loading");
+            
             var loadOptions = new ObjLoadOptions
             {
                 EnableMaterials = true,
@@ -289,56 +525,10 @@ public class AssetsController : ControllerBase
                 LookupPaths = new List<string> { tempPath }
             };
 
-            var scene = Scene.FromFile(objFile, loadOptions);
-
-            // Find textures in the extracted folder
-            var textureFiles = Directory.GetFiles(tempPath, "*.*", SearchOption.AllDirectories)
-                .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                            f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                            f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
-                .Where(f => !Path.GetFileName(f).Equals("icon.png", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            // Prioritize diffuse texture
-            var diffuseTexture = textureFiles.FirstOrDefault(f =>
-                Path.GetFileName(f).StartsWith("diffuse_", StringComparison.OrdinalIgnoreCase));
-
-            var pbrTexture = textureFiles.FirstOrDefault(f =>
-                Path.GetFileName(f).StartsWith("pbr_", StringComparison.OrdinalIgnoreCase));
-
-            var mainTexture = diffuseTexture ?? pbrTexture ?? textureFiles.FirstOrDefault();
-
-            // Create embedded texture object if we have a texture file
-            Texture? textureObj = null;
-            if (mainTexture != null)
-            {
-                var textureBytes = await System.IO.File.ReadAllBytesAsync(mainTexture);
-                textureObj = new Texture
-                {
-                    Content = textureBytes,
-                    FileName = Path.GetFileName(mainTexture)
-                };
-            }
-
-            // Create PBR material
-            var newMaterial = new PbrMaterial
-            {
-                Name = "EmbeddedMaterial",
-                MetallicFactor = 0.0,
-                RoughnessFactor = 0.5
-            };
-
-            if (textureObj != null)
-            {
-                newMaterial.AlbedoTexture = textureObj;
-                newMaterial.Albedo = new Vector3(1.0, 1.0, 1.0);
-            }
-            else
-            {
-                newMaterial.Albedo = new Vector3(0.8, 0.8, 0.8);
-            }
-
-            // First pass: collect collision meshes to remove
+            scene = Scene.FromFile(objFile, loadOptions);
+            
+            // Remove collision meshes
+            Console.WriteLine("  Removing collision meshes...");
             var nodesToRemove = new List<Node>();
             scene.RootNode.Accept(n =>
             {
@@ -347,61 +537,127 @@ public class AssetsController : ControllerBase
                         n.Name.StartsWith("UBX_", StringComparison.OrdinalIgnoreCase) ||
                         n.Name.StartsWith("USP_", StringComparison.OrdinalIgnoreCase) ||
                         n.Name.StartsWith("UCP_", StringComparison.OrdinalIgnoreCase)))
+                {
                     nodesToRemove.Add(n);
+                    Console.WriteLine($"    Removing: {n.Name}");
+                }
                 return true;
             });
-
-            // Remove collision meshes
-            foreach (var nodeToRemove in nodesToRemove) nodeToRemove.ParentNode?.ChildNodes.Remove(nodeToRemove);
-
-            // Second pass: apply materials and fix meshes
+            
+            foreach (var nodeToRemove in nodesToRemove)
+                nodeToRemove.ParentNode?.ChildNodes.Remove(nodeToRemove);
+            
+            Console.WriteLine($"  Removed {nodesToRemove.Count} collision meshes");
+            
+            var fallbackTexture = textureCache.Count == 1 ? textureCache.Values.First() : 
+                                 textureCache.Values.FirstOrDefault(t => t.FileName.StartsWith("diffuse_", StringComparison.OrdinalIgnoreCase));
+            
             scene.RootNode.Accept(n =>
             {
                 if (n.Entity is Mesh mesh)
                 {
-                    // Generate normals if missing
-                    if (mesh.GetElement(VertexElementType.Normal) == null) PolygonModifier.GenerateNormal(mesh);
+                    Console.WriteLine($"  Processing mesh: {n.Name ?? "(unnamed)"}");
+                    
+                    if (mesh.GetElement(VertexElementType.Normal) == null)
+                    {
+                        PolygonModifier.GenerateNormal(mesh);
+                        Console.WriteLine($"    Generated normals");
+                    }
+                    if (mesh.GetElement(VertexElementType.UV) == null)
+                    {
+                        PolygonModifier.GenerateUV(mesh);
+                        Console.WriteLine($"    Generated UVs");
+                    }
 
-                    // Only generate UVs if they don't exist
-                    if (mesh.GetElement(VertexElementType.UV) == null) PolygonModifier.GenerateUV(mesh);
-
-                    // Apply material
-                    n.Material = newMaterial;
+                    var materialName = n.Material?.Name ?? "";
+                    Console.WriteLine($"    Material name: '{materialName}'");
+                    Texture? textureToApply = null;
+                    
+                    // Try to find matching texture
+                    if (!string.IsNullOrEmpty(materialName))
+                    {
+                        if (mtlMappings.TryGetValue(materialName, out var texName))
+                        {
+                            textureCache.TryGetValue(texName, out textureToApply);
+                            if (textureToApply != null)
+                                Console.WriteLine($"    MTL mapping found: {texName}");
+                        }
+                        
+                        if (textureToApply == null)
+                        {
+                            var possibleNames = new[]
+                            {
+                                $"diffuse_{materialName}.png",
+                                $"diffuse_{materialName}.jpg",
+                                $"{materialName}.png",
+                                $"{materialName}.jpg"
+                            };
+                            
+                            foreach (var name in possibleNames)
+                            {
+                                if (textureCache.TryGetValue(name, out textureToApply))
+                                {
+                                    Console.WriteLine($"    Name match: {name}");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fall back to any available texture for single-texture models
+                    if (textureToApply == null && fallbackTexture != null)
+                    {
+                        textureToApply = fallbackTexture;
+                        Console.WriteLine($"    Using fallback: {fallbackTexture.FileName}");
+                    }
+                    
+                    var pbrMat = new PbrMaterial
+                    {
+                        Name = string.IsNullOrEmpty(materialName) ? "DefaultMaterial" : materialName,
+                        MetallicFactor = 0.0,
+                        RoughnessFactor = 0.5
+                    };
+                    
+                    if (textureToApply != null)
+                    {
+                        pbrMat.AlbedoTexture = textureToApply;
+                        pbrMat.Albedo = new Vector3(1.0, 1.0, 1.0);
+                        Console.WriteLine($"  ✅ Applied texture: {textureToApply.FileName}");
+                    }
+                    else
+                    {
+                        pbrMat.Albedo = new Vector3(0.8, 0.8, 0.8);
+                        Console.WriteLine($"  ⚠ No texture - using gray");
+                    }
+                    
+                    n.Material = pbrMat;
                 }
-
                 return true;
             });
-
-            // Prepare output path
-            var filename = $"{Guid.NewGuid()}.glb";
-            var outputDir = Path.Combine(_environment.WebRootPath, "uploads", "previews");
-            Directory.CreateDirectory(outputDir);
-            var outputPath = Path.Combine(outputDir, filename);
-
-            // Save as GLB with embedded assets
-            var saveOptions = new GltfSaveOptions(FileFormat.GLTF2_Binary)
-            {
-                EmbedAssets = true,
-                SaveExtras = false,
-                FlipTexCoordV = true
-            };
-
-            scene.Save(outputPath, saveOptions);
-
-            return filename;
         }
-        finally
+
+        // Save GLB
+        var filename = $"{Guid.NewGuid()}.glb";
+        var outputDir = Path.Combine(_environment.WebRootPath, "uploads", "previews");
+        Directory.CreateDirectory(outputDir);
+        var outputPath = Path.Combine(outputDir, filename);
+
+        var saveOptions = new GltfSaveOptions(FileFormat.GLTF2_Binary)
         {
-            // Cleanup temporary files
-            if (Directory.Exists(tempPath))
-                try
-                {
-                    Directory.Delete(tempPath, true);
-                }
-                catch
-                {
-                    // Ignore cleanup errors
-                }
-        }
+            EmbedAssets = true,
+            SaveExtras = false,
+            FlipTexCoordV = true
+        };
+
+        scene.Save(outputPath, saveOptions);
+        Console.WriteLine($"\n✅ Saved: {filename}");
+
+        return filename;
     }
+    finally
+    {
+        if (Directory.Exists(tempPath))
+            try { Directory.Delete(tempPath, true); } catch { }
+    }
+}
 }

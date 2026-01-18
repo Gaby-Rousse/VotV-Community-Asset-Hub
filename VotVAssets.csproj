@@ -148,6 +148,7 @@
         <Folder Include="Frontend\app\models\classes\"/>
         <Folder Include="Migrations\ApplicationDb\"/>
         <Folder Include="wwwroot\uploads\files\"/>
+        <Folder Include="wwwroot\uploads\previews\"/>
     </ItemGroup>
 
 </Project>

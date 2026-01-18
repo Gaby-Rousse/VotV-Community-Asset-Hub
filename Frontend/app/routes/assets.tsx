@@ -156,6 +156,9 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [assetId, setAssetId] = useState(0);
     const [trigger, setTrigger] = useState(0);
+    const [query, setQuery] = useState("");
+    const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
+    const [selectedFilter, setSelectedFilter] = useState(0);
 
 
     useEffect(() => {
@@ -164,13 +167,40 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
             .catch(err => console.error('Failed to fetch assets:', err));
     }, [item, trigger]);
 
+    useEffect(() => {
+        if (selectedFilter == 0) {
+            setFilteredAssets(assets.filter(asset =>
+                asset.name.toLowerCase().includes(query.toLowerCase())
+            ));
+        } else if (selectedFilter == 1) {
+            setFilteredAssets(assets.filter(asset =>
+                // @ts-ignore
+                asset.artistName.toLowerCase().includes(query.toLowerCase())
+            ));
+        }
+
+    }, [query, assets]);
+
+
     return (
         <>
             {assetId != 0 ? (<ShowAsset id={assetId} setId={setAssetId} setSelectedAsset={setSelectedAsset}
                                         setIsNavigating={setIsNavigating} setTrigger={setTrigger}/>) : ("")}
+            <div className="flex flex-row gap-1 mt-1 mx-0.5">
+                <input type="text" onChange={(e) => setQuery(e.target.value)} className="dos text-center border flex-1"
+                       placeholder="Search..."/>
+                <button onClick={() => setSelectedFilter(0)}
+                        className={`dos border hover:cursor-pointer px-2 ${selectedFilter == 0 ? ("selected") : ("")}`}>By Title
+                </button>
+                <button onClick={() => setSelectedFilter(1)}
+                        className={`dos border hover:cursor-pointer px-2 ${selectedFilter == 1 ? ("selected") : ("")}`}>By Artist
+                </button>
+            </div>
             <div
                 className="flex sm:justify-center overflow-y-auto sm:flex-wrap mt-3 mb-3 sm:mt-1 px-1 gap-3 flex-col sm:flex-row">
-                {assets.map((a) => (
+
+
+                {filteredAssets.map((a) => (
                     <div onClick={() => setAssetId(a.id)} className="flex hover:cursor-pointer flex-col" key={a.id}>
                         <div className="mx-auto size-50 border relative">
                             <img className="absolute  mx-auto object-contain w-full h-full " alt="thumbnail"
