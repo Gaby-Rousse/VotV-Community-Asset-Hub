@@ -153,6 +153,8 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
     const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
     const [selectedFilter, setSelectedFilter] = useState(0);
     const {isLoading, setIsLoading} = useLoading();
+    const [owned, setIsOwned] = useState(false);
+    const {isAuthenticated, id, isAdmin} = useAuth()
 
 
     useEffect(() => {
@@ -163,18 +165,24 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
     }, [item, trigger]);
 
     useEffect(() => {
+        let filtered = assets
         if (selectedFilter == 0) {
-            setFilteredAssets(assets.filter(asset =>
-                asset.name.toLowerCase().includes(query.toLowerCase())
-            ));
+            filtered = assets.filter(asset =>
+                asset.name.toLowerCase().includes(query.toLowerCase()));
         } else if (selectedFilter == 1) {
-            setFilteredAssets(assets.filter(asset =>
+            filtered = assets.filter(asset =>
                 // @ts-ignore
                 asset.artistName.toLowerCase().includes(query.toLowerCase())
-            ));
+            );
         }
+        if(owned)
+        {
+            filtered = filtered.filter(asset => asset.ownerId === id);
+        }
+        
+        setFilteredAssets(filtered);
 
-    }, [query, assets]);
+    }, [query, assets, selectedFilter, owned]);
 
 
     return (
@@ -190,6 +198,9 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
                 <button onClick={() => setSelectedFilter(1)}
                         className={`dos border hover:cursor-pointer px-2 ${selectedFilter == 1 ? ("selected") : ("")}`}>By Artist
                 </button>
+                {isAuthenticated ? (   <button onClick={() => setIsOwned(!owned)}
+                                               className={`dos border hover:cursor-pointer px-2 ${owned ? ("selected") : ("")}`}>Owned
+                </button>) : ("")}
             </div>
             <div
                 className="flex sm:justify-center overflow-y-auto sm:flex-wrap mt-3 mb-3 sm:mt-1 px-1 gap-3 flex-col sm:flex-row">

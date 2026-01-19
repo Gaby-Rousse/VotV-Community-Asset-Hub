@@ -3,6 +3,7 @@ import type Artist from "~/models/interfaces/Artist";
 import {apiCall, GenerateSocial} from "~/tsx/functions";
 import {useAuth} from "~/context/AuthContext";
 import {useLoading} from "~/context/LoadingContext";
+import type Asset from "~/models/interfaces/Asset";
 
 export function ArtistDropdown({onSelect, initialArtistId}: {
     onSelect: (id: number) => void;
@@ -364,6 +365,9 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
     const [deleteArtist, setDeleteArtist] = useState(false);
     const [trigger, setTrigger] = useState(0);
     const {isLoading, setIsLoading} = useLoading();
+    const [query, setQuery] = useState("");
+    const [filteredArtists, setFilteredArtists] = useState<Artist[]>([]);
+    const [owned, setIsOwned] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
@@ -371,6 +375,18 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
             .then(data => setArtists(data))
             .catch(err => console.error('Failed to fetch artists:', err)).finally(() => setIsLoading(false));
     }, [trigger]);
+
+    useEffect(() => {
+        let filtered = artists.filter(artist =>
+            artist.name.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        if (owned) {
+            filtered = filtered.filter(artist => artist.ownerId === id);
+        }
+        
+        setFilteredArtists(filtered);
+    }, [query, artists, owned]);
 
     return (
         <>
@@ -383,7 +399,16 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
                     a
                     description about them
                 </div>
-                {artists.map((a) => (
+                <div className="flex flex-row gap-1 mt-0.5 mx-0.5">
+                <input type="text" onChange={(e) => setQuery(e.target.value)} className="dos text-center border flex-1"
+                       placeholder="Search..."/>
+                    {isAuthenticated ? (   <button onClick={() => setIsOwned(!owned)}
+                                                   className={`dos border hover:cursor-pointer px-2 ${owned ? ("selected") : ("")}`}>Owned
+                    </button>) : ("")}
+                 
+                </div>
+         
+                {filteredArtists.map((a) => (
                         <div onClick={() => setArtistId(a.id)} key={a.id}
                              className="flex flex-row gap-1 hover:cursor-pointer border-b">
                             <img className="w-12 h-12 border-r" src={a.pfpUrl} alt="Avatar"/>
