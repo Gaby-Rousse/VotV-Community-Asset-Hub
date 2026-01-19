@@ -24,6 +24,7 @@ public class ArtistsController : ControllerBase
 
     // GET: api/Artists
     [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<IEnumerable<Artist>>> GetArtists()
     {
         return await _context.Artists.ToListAsync();
@@ -31,6 +32,7 @@ public class ArtistsController : ControllerBase
 
     // GET: api/Artists/5
     [HttpGet("{id}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<Artist>> GetArtist(long id)
     {
         var artist = await _context.Artists.FindAsync(id);

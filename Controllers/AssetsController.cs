@@ -34,6 +34,8 @@ public class AssetsController : ControllerBase
     }
 
     // GET: api/Assets
+    //https://stackoverflow.com/a/55686482
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AssetDto>>> GetAssets(
         ItemEnum? Item = null,
@@ -86,6 +88,7 @@ public class AssetsController : ControllerBase
 
     // GET: api/Assets/5
     [HttpGet("{id}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<Asset>> GetAsset(long id)
     {
         var asset = await _context.Assets.FindAsync(id);
@@ -111,6 +114,7 @@ public class AssetsController : ControllerBase
 
         asset.OwnerId = existingAsset.OwnerId;
         asset.Filename = existingAsset.Filename;
+        asset.Preview = existingAsset.Preview;
         asset.CreatedAt = existingAsset.CreatedAt;
 
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);

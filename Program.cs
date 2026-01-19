@@ -98,6 +98,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+if (app.Environment.IsProduction())
+{
+    app.MapFallbackToFile("index.html");
+}
+
+
 //app.MapIdentityApi<IdentityUser>();
 
 

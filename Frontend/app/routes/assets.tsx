@@ -10,15 +10,6 @@ import {Canvas} from '@react-three/fiber';
 import {OrbitControls, useGLTF} from '@react-three/drei';
 import {LoadingProvider, useLoading} from "~/context/LoadingContext";
 
-
-export async function clientLoader() {
-    return {};
-}
-
-export async function loader() {
-    return null;
-}
-
 //https://www.convex.dev/typescript/core-concepts/data-structures/typescript-dictionary
 interface DictionaryType {
     [key: string]: number;
@@ -490,13 +481,13 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                     </div>
                     <div className="flex flex-row w-full h-full overflow-hidden">
                         <div className="w-3/4 border-r flex flex-col h-full min-h-0">
-                            {asset?.previewUrl != null ? (
+                            {asset?.item == ItemEnum["3D Model"] && asset?.previewUrl != "NOT_AVAILABLE" ? (
                                     <div className="h-94.5">
                                         <Canvas camera={{position: [0, 0, 50], fov: 50}}>
                                             < ambientLight intensity={0.5}/>
                                             <directionalLight position={[5, 5, 5]}/>
                                             <Suspense fallback={null}>
-                                                <Model url={asset.previewUrl}/>
+                                                <Model url={asset?.previewUrl ?? ""}/>
                                             </Suspense>
                                             <OrbitControls autoRotate/>
                                         </Canvas>

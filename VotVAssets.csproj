@@ -147,8 +147,10 @@
         <Folder Include="Frontend\app\fonts\"/>
         <Folder Include="Frontend\app\models\classes\"/>
         <Folder Include="Migrations\ApplicationDb\"/>
+        <Folder Include="wwwroot\uploads\avatars\" />
         <Folder Include="wwwroot\uploads\files\"/>
         <Folder Include="wwwroot\uploads\previews\"/>
+        <Folder Include="wwwroot\uploads\thumbnails\" />
     </ItemGroup>
 
 </Project>
