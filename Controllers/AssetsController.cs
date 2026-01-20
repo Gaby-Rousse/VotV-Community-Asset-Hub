@@ -114,7 +114,7 @@ public class AssetsController : ControllerBase
 
         asset.OwnerId = existingAsset.OwnerId;
         asset.Filename = existingAsset.Filename;
-        asset.Preview = existingAsset.Preview;
+       
         asset.CreatedAt = existingAsset.CreatedAt;
 
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
@@ -128,6 +128,24 @@ public class AssetsController : ControllerBase
         {
             asset.Thumbnail = existingAsset.Thumbnail;
         }
+        
+        asset.Preview = existingAsset.Preview;
+
+        if(Request.Form.Files["preview"] != null)
+        {
+            string ext = Path.GetExtension(Request.Form.Files["preview"].FileName);
+            if(string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
+            {
+                var preview = await HandlePreview(Request.Form.Files["preview"]);
+                if (preview != null)
+                {
+                    DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "previews",
+                        existingAsset.Preview ?? ""));
+                    asset.Preview = preview;
+                }
+            }
+        }
+       
 
         try
         {
@@ -169,8 +187,27 @@ public class AssetsController : ControllerBase
         }
 
         if (asset.Item == ItemEnum.Model)
-            asset.Preview = await ConvertAndSaveGlb(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads",
-                "files", asset.Filename));
+        {
+            if (Request.Form.Files["preview"] != null)
+            {
+                string ext = Path.GetExtension(Request.Form.Files["preview"].FileName);
+                if (string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
+                {
+                    asset.Preview = await HandlePreview(Request.Form.Files["preview"]);
+                }
+                else
+                {
+                    return BadRequest(new { error = "If you provide a preview, it must be a .glb file." });
+                }
+            }
+            
+            if (asset.Preview == null)
+            {
+                asset.Preview = await ConvertAndSaveGlb(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads",
+                    "files", asset.Filename));
+            }
+        }
+
 
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync();
@@ -226,6 +263,22 @@ public class AssetsController : ControllerBase
         return fileName;
     }
 
+    private async Task<string?> HandlePreview(IFormFile? preview)
+    {
+        var rootPath = _environment.ContentRootPath;
+        var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "previews");
+
+        if (preview == null) return null;
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(preview.FileName)}";
+        var fullPath = Path.Combine(uploadFolder, fileName);
+
+        await using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await preview.CopyToAsync(stream);
+        }
+
+        return fileName;
+    }
 
     private async Task<string?> HandleFile(IFormFile? file)
     {

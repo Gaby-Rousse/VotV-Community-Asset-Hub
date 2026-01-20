@@ -401,7 +401,7 @@ function AssetForm({item, asset, setIsNavigating}: {
                     <input name="source"
                            className="w-full h-6 border dos  text-center" type="text"
                            placeholder="Source"
-                           defaultValue={asset?.description}
+                           defaultValue={asset?.source}
                     />
                     <div className="flex relative flex-row">
                         {asset ? ("") : (<><b className="red absolute left-1 dos mr-1">*</b>
@@ -409,6 +409,18 @@ function AssetForm({item, asset, setIsNavigating}: {
                                    className="w-full h-6 border dos  text-center" type="file"
                             /></>)}
                     </div>
+                    {item == 5 ? (<>
+                        <div className="dos">3D Preview (NOT MANDATORY, PLEASE READ BELOW)</div>
+                    <hr className="mb-1"/>
+                      
+                        <div className="flex flex-row">
+                            
+                        <input accept=".glb" name="preview"
+                               className="w-full h-6 border dos  text-center" type="file"
+                        />
+                        </div>
+                        <div className="dos">Server will try to parse your .obj 3D model and convert it into a .glb file. This might not work properly. Therefore you can provide your own preview, with the only requirement that it must be a .glb file with textures embedded into it.</div>
+                    </>) : ("")}
 
 
                 </div>
@@ -481,7 +493,7 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
             <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 bg-black/50 z-10 ">
 
                 <div
-                    className="flex flex-col mx-auto my-auto w-full h-full sm:w-2/3 sm:h-4/5 bg-black border-2 overflow-hidden">
+                    className="flex flex-col mx-auto my-auto w-full h-full 2xl:w-2/3 2xl:h-4/5 bg-black border-2 xl:overflow-hidden overflow-y-auto">
                     <div className="flex shrink-0 w-full gap-2 h-12 border-b-2 flex-row">
                         <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{asset?.name}</div>
                         <button onClick={() => setId(0)}
@@ -490,10 +502,10 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                             <img src="https://votvbroadcast.com/images/cross.png"/>
                         </button>
                     </div>
-                    <div className="flex flex-row w-full h-full overflow-hidden">
-                        <div className="w-3/4 border-r flex flex-col h-full min-h-0">
+                    <div className="flex xl:flex-row flex-col w-full xl:h-full h-auto overflow-visible xl:overflow-hidden">
+                        <div className="2xl:w-3/4 w-full 2xl:border-r flex flex-col h-full min-h-0">
                             {asset?.item == ItemEnum["3D Model"] && asset?.previewUrl != "NOT_AVAILABLE" ? (
-                                    <div className="h-94.5">
+                                    <div className="xl:h-94.5  h-55">
                                         <Canvas camera={{position: [0, 0, 50], fov: 50}}>
                                             < ambientLight intensity={0.5}/>
                                             <directionalLight position={[5, 5, 5]}/>
@@ -505,12 +517,12 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                                     </div>
                                 ) :
                                 (<div className="shrink-0">
-                                        <img className="h-94.5 w-full object-contain m-auto" src={asset?.thumbnailUrl}/>
+                                        <img className="xl:h-94.5 h-55 w-full object-contain m-auto" src={asset?.thumbnailUrl}/>
                                     </div>
                                 )}
 
 
-                            <div className="flex p-1 flex-1 flex-col border-t min-h-0">
+                            <div className="flex p-1 flex-1 border-b xl:border-b-0 xl:border-r 2xl:border-r-0 flex-col border-t min-h-0">
                                 <div className="dos shrink-0">Description:</div>
 
                                 <div className="dos overflow-y-auto flex-1 min-h-0">
@@ -518,20 +530,20 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                                 </div>
                             </div>
                         </div>
-                        <div className="w-1/4 flex flex-col h-full">
+                        <div className="xl:w-1/4 w-full flex flex-col h-full">
                             <div className="flex flex-row">
                                 <img className="size-25" src={artist?.pfpUrl}/>
                                 <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{artist?.name}</div>
                             </div>
                             <hr/>
                             <div className="flex flex-1 flex-col  min-h-0">
-                                <div className="flex flex-col min-h-0 p-1 flex-1 mb-4">
+                                <div className="flex flex-col min-h-0 p-1 h-50 xl:flex-1 mb-4">
                                     <div className="dos shrink-0">Artist Description:</div>
                                     <div className="dos overflow-y-auto">
                                         {artist?.description}
                                     </div>
                                 </div>
-                                <div className="flex border-t flex-col p-1 min-h-0 flex-1">
+                                <div className="flex border-t flex-col p-1 min-h-0 h-50 xl:flex-1">
                                     <div className="dos shrink-0">Socials:</div>
                                     <div className="flex-col flex overflow-y-auto">
                                         {artist?.socials?.map((social) => {
@@ -544,7 +556,7 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
 
 
                     </div>
-                    <div className="flex border-t shrink-0 w-full gap-2 h-12 flex-row">
+                    <div className="flex border-t shrink-0 mt-auto w-full gap-2 h-12 flex-row">
 
                         <div className="flex flex-row ml-auto gap-1 mr-1">
                             {isAuthenticated ? (

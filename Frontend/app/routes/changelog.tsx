@@ -19,6 +19,16 @@ export default function changelog()
                     </ul>
                 </div>
                 <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.1
+                    (01/20/2026)
+                </div>
+                <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">
+                    <ul>
+                        <li>Added the possibility for users to add their own .glb files for previews</li>
+                        <li>Fixed a bug that was showing the description for the "source" input too when editing an asset</li>
+                        <li>Improved UI on mobile</li>
+                    </ul>
+                </div>
+                <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.1
                     (01/19/2026)
                 </div>
                 <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">

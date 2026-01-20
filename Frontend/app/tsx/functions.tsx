@@ -76,7 +76,7 @@ export function GenerateSocial({url}: { url: string }) {
                 className="dos my-auto"/>ArtStation</a>
     else
         social = <a target="_blank" href={url} className="flex url flex-row gap-1 dos"><CiGlobe
-            className="dos my-auto"/>{url}</a>
+            className="dos  my-auto"/><div className="dos truncate">{url}</div></a>
     return social
 }
 
