@@ -111,3 +111,31 @@ input:focus, textarea:focus {
     color: #50eafe;
 }
 
+.slider {
+    -webkit-appearance: none;
+    height: 6px;
+    background: #222222;
+    outline: none;
+    border: none;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 20px;
+    border-radius: 0;
+    background: #F8FE50;
+    cursor: pointer;
+    border: none;
+}
+
+.slider::-moz-range-thumb {
+    width: 10px;
+    height: 20px;
+    border-radius: 0;
+    background: #F8FE50;
+    cursor: pointer;
+    border: none;
+}
+

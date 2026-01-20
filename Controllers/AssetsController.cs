@@ -197,7 +197,7 @@ public class AssetsController : ControllerBase
                 }
                 else
                 {
-                    return BadRequest(new { error = "If you provide a preview, it must be a .glb file." });
+                    return BadRequest(new { error = "Preview must be a .glb file." });
                 }
             }
             

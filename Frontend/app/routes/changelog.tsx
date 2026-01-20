@@ -16,9 +16,11 @@ export default function changelog()
                         <li>Make a better UI for mobile users</li>
                         <li>Add suggestions page</li>
                         <li>Add bug report page</li>
+                        <li>Sources</li>
+                        <li>Add tags</li>
                     </ul>
                 </div>
-                <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.1
+                <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.2
                     (01/20/2026)
                 </div>
                 <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">
@@ -26,6 +28,10 @@ export default function changelog()
                         <li>Added the possibility for users to add their own .glb files for previews</li>
                         <li>Fixed a bug that was showing the description for the "source" input too when editing an asset</li>
                         <li>Improved UI on mobile</li>
+                        <li>Improved the preview for 3D models</li>
+                        <li className="ml-5">Items are auto-scaled to fit and auto-centered</li>
+                        <li className="ml-5">Users can change the intensity of the light in the scene</li>
+                        <li className="ml-5">Users can change the background color of the scene</li>
                     </ul>
                 </div>
                 <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.1

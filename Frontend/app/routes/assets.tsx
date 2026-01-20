@@ -7,7 +7,7 @@ import {ArtistDropdown, ArtistForm, FetchArtist, FetchArtists} from "~/tsx/artis
 import type Asset from "~/models/interfaces/Asset";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {Canvas} from '@react-three/fiber';
-import {OrbitControls, useGLTF} from '@react-three/drei';
+import {Center, OrbitControls, Stage, useGLTF} from '@react-three/drei';
 import {LoadingProvider, useLoading} from "~/context/LoadingContext";
 
 //https://www.convex.dev/typescript/core-concepts/data-structures/typescript-dictionary
@@ -464,6 +464,9 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
     const [askConfirmation, setAskConfirmation] = useState(false);
     const {isAuthenticated, isAdmin, id: userId} = useAuth();
     const {isLoading, setIsLoading} = useLoading();
+    const [lighting, setLighting] = useState(1.0);
+    const [color, setColor] = useState("#000000")
+    
     useEffect(() => {
         setIsLoading(true);
         FetchAsset(id)
@@ -487,7 +490,9 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
             alert(parsedResponse.title);
         }
     }
+    
 
+    
     return (
         <>
             <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 bg-black/50 z-10 ">
@@ -503,17 +508,34 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
                         </button>
                     </div>
                     <div className="flex xl:flex-row flex-col w-full xl:h-full h-auto overflow-visible xl:overflow-hidden">
-                        <div className="2xl:w-3/4 w-full 2xl:border-r flex flex-col h-full min-h-0">
+                        <div className="2xl:w-3/4  w-full 2xl:border-r flex flex-col h-full min-h-0">
                             {asset?.item == ItemEnum["3D Model"] && asset?.previewUrl != "NOT_AVAILABLE" ? (
-                                    <div className="xl:h-94.5  h-55">
+                                    <div style={{ backgroundColor: color }} className="xl:h-94.5 bg-[] relative h-55">
                                         <Canvas camera={{position: [0, 0, 50], fov: 50}}>
-                                            < ambientLight intensity={0.5}/>
+                                            <ambientLight intensity={lighting}/>
                                             <directionalLight position={[5, 5, 5]}/>
                                             <Suspense fallback={null}>
+                                                <Stage intensity={0}        
+                                                       environment={null}   
+                                                       shadows={false}   
+                                                       adjustCamera={true}>
                                                 <Model url={asset?.previewUrl ?? ""}/>
+                                                </Stage>
                                             </Suspense>
                                             <OrbitControls autoRotate/>
                                         </Canvas>
+                                        <div className="absolute gap-1 bottom-1 left-1 flex flex-row">
+                                            <img className="size-7" src="https://votvbroadcast.com/images/lowLight.png"/>
+                                            <input value={lighting} onChange={(e) => setLighting(parseFloat(e.target.value))} step="0.1" min="0.0" max="10.0" className="my-auto slider" type="range"/>
+                                            <img className="size-7" src="https://votvbroadcast.com/images/highLight.png"/>
+                                            <div className="dos my-auto">{lighting}</div>
+                                        </div>
+                                        <div className="absolute gap-1 bottom-1 right-1 flex flex-row">
+                                            <label className="my-auto hover:cursor-pointer" htmlFor="bgColor"><img className="size-7 my-auto" src="https://votvbroadcast.com/images/paintbrush.png"/></label>
+                                            <label htmlFor="bgColor" className="dos hover:cursor-pointer my-auto">BG</label>
+                                            <input value={color} onChange={(e) => setColor(e.target.value)} id="bgColor"  className="my-auto hover:cursor-pointer dos border size-8" type="color"/>
+                                            <label htmlFor="bg-Color" className="dos hover:cursor-pointer my-auto">{color}</label>
+                                        </div>
                                     </div>
                                 ) :
                                 (<div className="shrink-0">
