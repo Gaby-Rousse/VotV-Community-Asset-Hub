@@ -12,7 +12,7 @@ using SixLabors.ImageSharp;
 using VotVAssets.Models;
 using Asset = VotVAssets.Models.Asset;
 using Image = SixLabors.ImageSharp.Image;
-
+using ImageMagick;
 
 namespace VotVAssets.Controllers;
 
@@ -259,6 +259,8 @@ public class AssetsController : ControllerBase
         {
             await thumbnail.CopyToAsync(stream);
         }
+        
+        TrimTransparentImage(fullPath, fullPath);
 
         return fileName;
     }
@@ -718,5 +720,12 @@ public async Task<string> ConvertAndSaveGlb(string zipPath)
         if (Directory.Exists(tempPath))
             try { Directory.Delete(tempPath, true); } catch { }
     }
+}
+
+public void TrimTransparentImage(string inputPath, string outputPath)
+{
+    using var image = new MagickImage(inputPath);
+    image.Trim();
+    image.Write(outputPath);
 }
 }

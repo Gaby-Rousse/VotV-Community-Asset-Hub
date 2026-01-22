@@ -21,7 +21,9 @@
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
     "react-router": "^7.12.0",
-    "three": "^0.182.0"
+    "three": "^0.182.0",
+    "trim-canvas": "^0.1.2",
+    "trim-image-data": "^2.1.0"
   },
   "devDependencies": {
     "@react-router/dev": "^7.12.0",

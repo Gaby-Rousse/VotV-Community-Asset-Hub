@@ -9,6 +9,9 @@ import ItemEnum from "~/models/enums/ItemEnum";
 import {Canvas} from '@react-three/fiber';
 import {Center, OrbitControls, Stage, useGLTF} from '@react-three/drei';
 import {LoadingProvider, useLoading} from "~/context/LoadingContext";
+import trimImageData from "trim-image-data";
+import TypeEnum from "~/models/enums/TypeEnum";
+
 
 //https://www.convex.dev/typescript/core-concepts/data-structures/typescript-dictionary
 interface DictionaryType {
@@ -31,6 +34,7 @@ export default function Assets() {
     const {isAuthenticated, id, isAdmin} = useAuth();
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+    const [pictureType, setPictureType] = useState<number | null>(null)
     const toggleNavigating = () => {
         setSelectedArtist(null);
         setSelectedAsset(null);
@@ -38,12 +42,19 @@ export default function Assets() {
     };
     const {isLoading, setIsLoading} = useLoading();
 
+    useEffect(() => {
+        setPictureType(null)
+    }, [selectedButton]);
+
     return (
         <>
             <div className="md:border-3 border-solid h-screen bg-black flex flex-col p-0.5">
                 <Nav isAuthenticated={isAuthenticated} isNavigating={isNavigating} toggleNavigating={toggleNavigating}
                      selectedButton={selectedButton}
-                     setSelectedButton={setSelectedButton}></Nav>
+                     setSelectedButton={setSelectedButton}
+                     pictureType={pictureType}
+                     setPictureType={setPictureType}
+                ></Nav>
                 {
                     selectedButton === "Radio" || selectedButton === "TV" ? (
                         <VCBAdvertisement isNavigating={isNavigating}/>) : isNavigating ? (
@@ -54,6 +65,7 @@ export default function Assets() {
                                 item={labelDictionary[selectedButton]}
                                 setIsNavigating={setIsNavigating}
                                 setSelectedAsset={setSelectedAsset}
+                                pictureType={pictureType}
                             />
                         )
                     ) : selectedButton === "Artists" ? (
@@ -78,17 +90,19 @@ export default function Assets() {
 }
 
 
-export function Nav({selectedButton, setSelectedButton, toggleNavigating, isNavigating, isAuthenticated}: {
+export function Nav({selectedButton, setSelectedButton, toggleNavigating, isNavigating, isAuthenticated, pictureType, setPictureType}: {
     selectedButton: string,
     setSelectedButton: (selectedButton: string) => void
     toggleNavigating: () => void
     isNavigating: boolean
     isAuthenticated: boolean
+    pictureType: number | null;
+    setPictureType: (value: number | null) => void
 }) {
     return (
         <>
-            <div className=" flex flex-row gap-1 border-solid border-3 md:m-0.5">
-                <div className="px-1 overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
+            <div className=" flex flex-col border-solid border-3 md:m-0.5">
+                <div className="px-1 overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
                     <Link
                         className="computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 shrink-0 flex"
                         to="/"><img className="size-6" alt="home"
@@ -98,8 +112,10 @@ export function Nav({selectedButton, setSelectedButton, toggleNavigating, isNavi
                     <ComputerButton text="ATV Skins" selectedButton={selectedButton}
                                     setSelectedButton={setSelectedButton}/>
                     <ComputerButton text="Flags" selectedButton={selectedButton} setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="Pictures" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
+                        <ComputerButton text="Pictures" selectedButton={selectedButton}
+                                        setSelectedButton={setSelectedButton}/>
+               
+                  
                     <ComputerButton text="Posters" selectedButton={selectedButton}
                                     setSelectedButton={setSelectedButton}/>
                     <ComputerButton text="Rugs" selectedButton={selectedButton} setSelectedButton={setSelectedButton}/>
@@ -120,6 +136,13 @@ export function Nav({selectedButton, setSelectedButton, toggleNavigating, isNavi
                                         setSelectedButton={setSelectedButton}/>
                     </div>
                 </div>
+                {selectedButton == "Pictures" ? ( <div className="px-1 pb-1 overflow-visible overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
+                    <button onClick={() => setPictureType(TypeEnum.Horizontal)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Horizontal && 'selected'}`}>Horizontal</button>
+                    <button onClick={() => setPictureType(TypeEnum.Square)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Square && 'selected'}`}>Square</button>
+                    <button onClick={() => setPictureType(TypeEnum.Vertical)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Vertical && 'selected'}`}>Vertical</button>
+                    <button onClick={() => setPictureType(TypeEnum.Table)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Table && 'selected'}`}>Table</button>
+                </div>) : ("")}
+               
             </div>
         </>
     )
@@ -141,10 +164,11 @@ export function ComputerButton({text, selectedButton, setSelectedButton}: {
 
 //https://dev.to/elfrontend/how-to-fetch-data-in-react-5-methods-compared-55nf
 //apiCall c'est un fetch fancy
-function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
+function FetchAssets({item, setIsNavigating, setSelectedAsset, pictureType}: {
     item: number,
     setIsNavigating: (item: boolean) => void,
     setSelectedAsset: (value: Asset) => void,
+    pictureType: number | null
 }) {
     const [assets, setAssets] = useState<Asset[]>([]);
     const [assetId, setAssetId] = useState(0);
@@ -180,41 +204,47 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
             filtered = filtered.filter(asset => asset.ownerId === id);
         }
         
+        if(pictureType != null)
+        {
+            filtered = filtered.filter(asset => asset.type === pictureType);
+        }
+        
         setFilteredAssets(filtered);
 
-    }, [query, assets, selectedFilter, owned]);
+    }, [query, assets, selectedFilter, owned, pictureType]);
 
 
     return (
         <>
             {assetId != 0 ? (<ShowAsset id={assetId} setId={setAssetId} setSelectedAsset={setSelectedAsset}
                                         setIsNavigating={setIsNavigating} setTrigger={setTrigger}/>) : ("")}
-            <div className="flex flex-row gap-1 mt-1 mx-0.5">
-                <input type="text" onChange={(e) => setQuery(e.target.value)} className="dos text-center border flex-1"
+            <div className="flex max-w-full w-full min-w-0 flex-row gap-1 mt-1 mx-0.5">
+                <input type="text" onChange={(e) => setQuery(e.target.value)} className="dos text-center border w-full"
                        placeholder="Search..."/>
                 <button onClick={() => setSelectedFilter(0)}
-                        className={`dos border hover:cursor-pointer px-2 ${selectedFilter == 0 ? ("selected") : ("")}`}>By Title
+                        className={`dos border md:whitespace-nowrap hover:cursor-pointer px-2 ${selectedFilter == 0 ? ("selected") : ("")}`}>By Title
                 </button>
                 <button onClick={() => setSelectedFilter(1)}
-                        className={`dos border hover:cursor-pointer px-2 ${selectedFilter == 1 ? ("selected") : ("")}`}>By Artist
+                        className={`dos border md:whitespace-nowrap hover:cursor-pointer px-2 ${selectedFilter == 1 ? ("selected") : ("")}`}>By Artist
                 </button>
                 {isAuthenticated ? (   <button onClick={() => setIsOwned(!owned)}
-                                               className={`dos border hover:cursor-pointer px-2 ${owned ? ("selected") : ("")}`}>Owned
+                                               className={`dos mr-1 border hover:cursor-pointer px-2 ${owned ? ("selected") : ("")}`}>Owned
                 </button>) : ("")}
             </div>
             <div
-                className="flex sm:justify-center overflow-y-auto sm:flex-wrap mt-3 mb-3 sm:mt-1 px-1 gap-3 flex-col sm:flex-row">
+                className="flex justify-center items-center overflow-y-auto mt-3 mb-3 sm:mt-1 px-1 gap-3 flex-wrap flex-row ">
 
 
                 {filteredAssets.map((a) => (
                     <div onClick={() => setAssetId(a.id)} className="flex hover:cursor-pointer flex-col" key={a.id}>
-                        <div className="mx-auto size-50 border relative">
-                            <img className="absolute  mx-auto object-contain w-full h-full " alt="thumbnail"
-                                 src={a.thumbnailUrl}/>
+                        <div className={`mx-auto ${SelectAspectRatio({item: a.item, type: a.type})} border relative`}>
+                            <img className="absolute object-fit mx-auto w-full h-full " alt="thumbnail"
+                                 src={a.thumbnailUrl ?? ""}/>
                             <div className="absolute px-1 top-0 h-10 w-full flex items-center flex-col bg-black/50">
                                 <div className="dos line-clamp-1 my-auto text-center">{a.name}</div>
                             </div>
                             <div className="absolute px-1 bottom-0 h-20 w-full flex flex-col bg-black/50">
+                                
                                 <div className="dos">Rating: N/A</div>
                                 <div className="dos truncate">By: {a.artistName} </div>
                                 <div className="dos text-center mt-auto">{humanDate(a.createdAt ?? "")}</div>
@@ -228,6 +258,24 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset}: {
         </>
     );
 }
+
+function SelectAspectRatio({item, type} : {item : number, type : number | undefined}) : string {
+    if(item == ItemEnum.Poster)
+        return "h-60 aspect-2/3"
+    if(item == ItemEnum.Picture)
+    {
+        if(type == TypeEnum.Horizontal)
+            return "h-50 aspect-5/4"
+        if(type == TypeEnum.Square)
+            return "h-50 aspect-1/1"
+        if(type == TypeEnum.Vertical)
+            return "h-50 aspect-5/8"
+        if(type == TypeEnum.Table)
+            return "h-50 aspect-3/4"
+    }
+    return "h-50 aspect-1/1"
+}
+
 
 function humanDate(date: string): string {
     let newDate = new Date(date);
@@ -578,9 +626,12 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
 
 
                     </div>
-                    <div className="flex border-t shrink-0 mt-auto w-full gap-2 h-12 flex-row">
-
-                        <div className="flex flex-row ml-auto gap-1 mr-1">
+                    <div className="flex border-t shrink-0 mt-auto w-full gap-2 py-2 flex-row">
+                        <div className="dos ml-1 flex hidden items-center flex-row">
+                            <div className="dos">Rating:</div>
+                            <div className="dos text-2xl"></div>
+                        </div>
+                        <div className="flex flex-row  mx-auto sm:ml-auto sm:mr-1 gap-1 ">
                             {isAuthenticated ? (
                                 (isAdmin || userId == (asset?.ownerId ?? 0)) ? (
                                     <>
@@ -677,3 +728,37 @@ function VCBAdvertisement({isNavigating}: { isNavigating: boolean }) {
     )
 }
 
+function TrimmedImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+    const [trimmedSrc, setTrimmedSrc] = useState(src);
+
+    useEffect(() => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, img.width, img.height);
+            
+            const trimmed = trimImageData(imageData);
+            
+            const trimmedCanvas = document.createElement('canvas');
+            trimmedCanvas.width = trimmed.width;
+            trimmedCanvas.height = trimmed.height;
+            const trimmedCtx = trimmedCanvas.getContext('2d');
+            if (!trimmedCtx) return;
+
+            trimmedCtx.putImageData(trimmed, 0, 0);
+            setTrimmedSrc(trimmedCanvas.toDataURL());
+        };
+
+        img.src = src;
+    }, [src]);
+
+    return <img src={trimmedSrc} alt={alt} className={className} />;
+}

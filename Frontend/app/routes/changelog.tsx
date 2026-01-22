@@ -18,6 +18,20 @@ export default function changelog()
                         <li>Add bug report page</li>
                         <li>Sources</li>
                         <li>Add tags</li>
+                        <li>Add rating</li>
+                    </ul>
+                </div>
+                <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.3
+                    (01/21/2026)
+                </div>
+                <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">
+                    <ul>
+                        <li>Improved Mobile UI</li>
+                        <li>Fixed artist page overflow</li>
+                        <li>Added various display for the different aspect ratio</li>
+                        <li>Thumbnails are now cropped automatically on the server</li>
+                        <li>You can now filter the pictures by their ratio (Horizontal, Square, Vertical, Table)</li>
+                        <li>Added animation for buttons similar to the VotV behavior when clicking on one</li>
                     </ul>
                 </div>
                 <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.2

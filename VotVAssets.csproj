@@ -12,6 +12,7 @@
         <PackageReference Include="Assimp" Version="3.0.0"/>
         <PackageReference Include="AssimpNet" Version="5.0.0-beta1"/>
         <PackageReference Include="CjClutter.ObjLoader" Version="1.0.0"/>
+        <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.10.2" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.22"/>
         <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.22"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.22"/>

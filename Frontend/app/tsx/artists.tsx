@@ -394,7 +394,7 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
                 <DeleteArtist id={artistId} setId={setArtistId} setDeleteArtist={setDeleteArtist}
                               setTrigger={setTrigger}/>) : (
                 <ShowArtist id={artistId} setId={setArtistId}/>)) : ("")}
-            <div className="flex flex-col">
+            <div className="flex flex-col min-h-0">
                 <div className="dos w-full purple text-center border-b">Click on an artist to see their socials and
                     a
                     description about them
@@ -407,50 +407,52 @@ export function FetchArtists({setSelectedArtist, setIsNavigating}: {
                     </button>) : ("")}
                  
                 </div>
-         
-                {filteredArtists.map((a) => (
-                        <div onClick={() => setArtistId(a.id)} key={a.id}
-                             className="flex flex-row gap-1 hover:cursor-pointer border-b">
-                            <img className="w-12 h-12 border-r" src={a.pfpUrl} alt="Avatar"/>
-                            <div className="flex flex-col gap-3">
-                                <div className="dos my-auto line-clamp-1">{a.name}</div>
-                            </div>
-                            <div className="flex flex-row gap-1 shrink-0 ml-auto mr-1 my-auto">
-                                {isAuthenticated ? (isAdmin || id == a.ownerId ? (<>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setArtistId(a.id);
-                                                setDeleteArtist(true);
+                <div className="overflow-y-auto min-h-0 flex flex-col">
+                    {filteredArtists.map((a) => (
+                            <div onClick={() => setArtistId(a.id)} key={a.id}
+                                 className="flex flex-row gap-1 hover:cursor-pointer border-b">
+                                <img className="w-12 h-12 border-r" src={a.pfpUrl} alt="Avatar"/>
+                                <div className="flex flex-col gap-3">
+                                    <div className="dos my-auto line-clamp-1">{a.name}</div>
+                                </div>
+                                <div className="flex flex-row gap-1 shrink-0 ml-auto mr-1 my-auto">
+                                    {isAuthenticated ? (isAdmin || id == a.ownerId ? (<>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setArtistId(a.id);
+                                                    setDeleteArtist(true);
+                                                }}
+                                                className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                                <img className="size-6" src="https://votvbroadcast.com/images/trash.png"/>
+                                                <div className="hidden sm:flex">Delete</div>
+                                            </button>
+                                            <button onClick={(e) => {
+                                                e.stopPropagation();
+                                                FetchArtist(a.id).then(data => setSelectedArtist(data));
+                                                setIsNavigating(false);
                                             }}
-                                            className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
-                                            <img className="size-6" src="https://votvbroadcast.com/images/trash.png"/>
-                                            <div className="hidden sm:flex">Delete</div>
-                                        </button>
-                                        <button onClick={(e) => {
-                                            e.stopPropagation();
-                                            FetchArtist(a.id).then(data => setSelectedArtist(data));
-                                            setIsNavigating(false);
-                                        }}
-                                                className="dos  shrink-0  hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
-                                            <img className="size-6" src="https://votvbroadcast.com/images/pencil.png"/>
-                                            <div className="hidden sm:flex">Edit</div>
-                                        </button>
-                                    </>) : ("")
-                                ) : ("")
+                                                    className="dos  shrink-0  hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                                <img className="size-6" src="https://votvbroadcast.com/images/pencil.png"/>
+                                                <div className="hidden sm:flex">Edit</div>
+                                            </button>
+                                        </>) : ("")
+                                    ) : ("")
 
-                                }
-                                <button
-                                    className="dos hidden hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
-                                    <img className="size-6" src="https://votvbroadcast.com/images/eye.png"/>
-                                    <div className="hidden sm:flex">See assets from them</div>
-                                </button>
+                                    }
+                                    <button
+                                        className="dos hidden hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                        <img className="size-6" src="https://votvbroadcast.com/images/eye.png"/>
+                                        <div className="hidden sm:flex">See assets from them</div>
+                                    </button>
+                                </div>
+
+
                             </div>
-
-
-                        </div>
-                    )
-                )}
+                        )
+                    )}
+                </div>
+               
             </div>
         </>
     )
