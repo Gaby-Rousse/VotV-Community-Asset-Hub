@@ -238,7 +238,7 @@ function FetchAssets({item, setIsNavigating, setSelectedAsset, pictureType}: {
                 {filteredAssets.map((a) => (
                     <div onClick={() => setAssetId(a.id)} className="flex hover:cursor-pointer flex-col" key={a.id}>
                         <div className={`mx-auto ${SelectAspectRatio({item: a.item, type: a.type})} border relative`}>
-                            <img className="absolute object-fit mx-auto w-full h-full " alt="thumbnail"
+                            <img className="absolute object-contain mx-auto w-full h-full " alt="thumbnail"
                                  src={a.thumbnailUrl ?? ""}/>
                             <div className="absolute px-1 top-0 h-10 w-full flex items-center flex-col bg-black/50">
                                 <div className="dos line-clamp-1 my-auto text-center">{a.name}</div>
@@ -627,7 +627,7 @@ export function ShowAsset({id, setId, setIsNavigating, setSelectedAsset, setTrig
 
                     </div>
                     <div className="flex border-t shrink-0 mt-auto w-full gap-2 py-2 flex-row">
-                        <div className="dos ml-1 flex hidden items-center flex-row">
+                        <div className="dos ml-1  hidden items-center flex-row">
                             <div className="dos">Rating:</div>
                             <div className="dos text-2xl"></div>
                         </div>
