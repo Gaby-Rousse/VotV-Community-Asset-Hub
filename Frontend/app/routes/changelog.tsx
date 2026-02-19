@@ -1,6 +1,6 @@
 import {Nav} from "~/routes/_index";
 
-export default function changelog()
+export default function Changelog()
 {
     return (
         <>
@@ -13,12 +13,28 @@ export default function changelog()
                 <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">
                     <ul>
                         <li>(Do not mind the order of this list)</li>
-                        <li>Make a better UI for mobile users</li>
                         <li>Add suggestions page</li>
                         <li>Add bug report page</li>
-                        <li>Sources</li>
-                        <li>Add tags</li>
                         <li>Add rating</li>
+                        <li>Add reports</li>
+                        <li>Add rudimentary mailbox</li>
+                    </ul>
+                </div>
+                <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.4
+                    (01/24/2026)
+                </div>
+                <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">
+                    <ul>
+                       <li>Server doesn't auto-convert 3D models into .glb anymore
+                           If you want a 3D preview you must provide a .glb yourself</li>
+                        <li>Added new menu that contains:</li>
+                        <li className="ml-5">Some stats</li>
+                        <li className="ml-5">Display settings (list or thumbnails)</li>
+                        <li className="ml-5">Rudimentary tags filter</li>
+                        <li className="ml-5">Order by (Alphabetically or Date + Reversed or not)</li>
+                        <li>Added tags input to Asset Form</li>
+                        <li>Made the source visible on the Asset viewer and tags too.</li>
+                        <li>More icons are supported for socials</li>
                     </ul>
                 </div>
                 <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.3

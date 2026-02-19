@@ -107,10 +107,6 @@ input:focus, textarea:focus {
     box-shadow: none;
 }
 
-.url:hover {
-    color: #50eafe;
-}
-
 .slider {
     -webkit-appearance: none;
     height: 6px;
@@ -145,4 +141,9 @@ button:active {
     transform: translateY(2px);
     border-color: #a5aa37 !important;
     color: #a5aa37 !important;
+}
+
+button:hover
+{
+    cursor:pointer;
 }

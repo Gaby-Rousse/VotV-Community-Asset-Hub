@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {Link, useNavigate} from "react-router";
-import {apiCall} from "~/tsx/functions";
 import {useAuth} from "~/context/AuthContext";
+import {apiCall} from "~/components/Functions";
 
 export default function login() {
     const [visibleCount, setVisibleCount] = useState(0);

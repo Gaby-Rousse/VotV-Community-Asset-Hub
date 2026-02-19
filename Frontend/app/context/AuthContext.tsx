@@ -1,5 +1,5 @@
 import {createContext, useContext, useEffect, useState} from 'react';
-import {apiCall} from "~/tsx/functions";
+import {apiCall} from "~/components/Functions";
 
 const AuthContext = createContext({
     isAuthenticated: false,

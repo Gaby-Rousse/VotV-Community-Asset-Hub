@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from "react";
 import {useNavigate} from "react-router";
-import {apiCall} from "~/tsx/functions";
 import {Line} from "./login";
 import {useAuth} from "~/context/AuthContext";
+import {apiCall} from "~/components/Functions";
 
 export default function account() {
     const [visibleCount, setVisibleCount] = useState(0);
