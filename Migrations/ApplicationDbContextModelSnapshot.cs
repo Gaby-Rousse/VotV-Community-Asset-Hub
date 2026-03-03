@@ -289,6 +289,9 @@ namespace VotVAssets.Migrations
                     b.Property<string>("Preview")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Size")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Source")
                         .HasColumnType("nvarchar(max)");
 

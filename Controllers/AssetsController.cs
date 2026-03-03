@@ -1,4 +1,3 @@
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -20,28 +19,51 @@ public class AssetsController : ControllerBase
     private readonly IWebHostEnvironment _environment;
     private readonly UserManager<IdentityUser> _userManager;
 
-    
+
     [HttpGet("trim-all")]
-    public async void TrimEverything()
+    public async Task<ActionResult> TrimEverything()
     {
+        if (!User.IsInRole("Admin")) return Unauthorized();
         var assets = await _context.Assets.ToListAsync();
-        
+
         foreach (var asset in assets)
         {
             if (asset.Thumbnail != null)
             {
                 var thumbnailPath = Path.Combine(
-                    _environment.ContentRootPath, 
-                    "wwwroot", 
-                    "uploads", 
+                    _environment.ContentRootPath,
+                    "wwwroot",
+                    "uploads",
                     "thumbnails",
                     asset.Thumbnail
                 );
-        
+
                 TrimTransparentImage(thumbnailPath, thumbnailPath);
             }
         }
+
+        return Ok("Trimmed everything successfully.");
     }
+    
+    [HttpGet("parse-all")]
+    public async Task<ActionResult>  ParseEverything()
+    {
+        if (!User.IsInRole("Admin")) return Unauthorized();
+        var assets = await _context.Assets.ToListAsync();
+
+        foreach (var asset in assets)
+        {
+            if (asset.Size == null)
+            {
+                asset.Size = await HandleFilesize(asset.Filename);
+                _context.Entry(asset).State = EntityState.Modified;
+            }
+        }
+        
+        await _context.SaveChangesAsync();
+        return Ok("Added size to files.");
+    }
+
 
     public AssetsController(IWebHostEnvironment environment, ApplicationDbContext context,
         UserManager<IdentityUser> userManager)
@@ -84,7 +106,8 @@ public class AssetsController : ControllerBase
                 Type = asset.Type,
                 Preview = asset.Preview,
                 CreatedAt = asset.CreatedAt,
-                UpdatedAt = asset.UpdatedAt
+                UpdatedAt = asset.UpdatedAt,
+                Size = asset.Size
             }
         );
 
@@ -119,7 +142,7 @@ public class AssetsController : ControllerBase
 
         asset.OwnerId = existingAsset.OwnerId;
         asset.Filename = existingAsset.Filename;
-       
+
         asset.CreatedAt = existingAsset.CreatedAt;
 
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
@@ -133,13 +156,13 @@ public class AssetsController : ControllerBase
         {
             asset.Thumbnail = existingAsset.Thumbnail;
         }
-        
+
         asset.Preview = existingAsset.Preview;
 
-        if(Request.Form.Files["preview"] != null)
+        if (Request.Form.Files["preview"] != null)
         {
             string ext = Path.GetExtension(Request.Form.Files["preview"].FileName);
-            if(string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
             {
                 var preview = await HandlePreview(Request.Form.Files["preview"]);
                 if (preview != null)
@@ -150,7 +173,7 @@ public class AssetsController : ControllerBase
                 }
             }
         }
-       
+
 
         try
         {
@@ -178,13 +201,13 @@ public class AssetsController : ControllerBase
         if (thumbnail != null)
             asset.Thumbnail = thumbnail;
 
-        var file = await HandleFile(Request.Form.Files["file"]);
+        var fileName = await HandleFile(Request.Form.Files["file"]);
 
-        if (file != null)
+        if (fileName != null)
         {
-            if (file == "INVALID_TYPE") return BadRequest(new { error = "Only images or .zip files allowed." });
+            if (fileName == "INVALID_TYPE") return BadRequest(new { error = "Only images or .zip files allowed." });
 
-            asset.Filename = file;
+            asset.Filename = fileName;
         }
         else
         {
@@ -207,7 +230,8 @@ public class AssetsController : ControllerBase
             }
         }
 
-
+        asset.Size = await HandleFilesize(fileName);
+        
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync();
 
@@ -258,7 +282,7 @@ public class AssetsController : ControllerBase
         {
             await thumbnail.CopyToAsync(stream);
         }
-        
+
         TrimTransparentImage(fullPath, fullPath);
 
         return fileName;
@@ -319,111 +343,132 @@ public class AssetsController : ControllerBase
             return "INVALID_TYPE";
         }
     }
-
- 
-
-public void TrimTransparentImage(string inputPath, string outputPath)
-{
-    using var image = Image.Load<Rgba32>(inputPath);
     
-    int width = image.Width;
-    int height = image.Height;
-
-    int top = 0;
-    int bottom = height - 1;
-    int left = 0;
-    int right = width - 1;
-    
-    //https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/jump-statements
-    
-    // 1 2 3 4 5
-    // 6 7 8 top
-    //
-    //
-    // 
-    for (int y = 0; y < height; y++)
+    private async Task<string?> HandleFilesize(string fileName)
     {
+        var rootPath = _environment.ContentRootPath;
+        var path = Path.Combine(rootPath, "wwwroot", "uploads", "files", fileName);
+        long length = new System.IO.FileInfo(path).Length;
+        return BytesToString(length);
+    }
+    
+    static string BytesToString(long byteCount)
+    {
+        string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+        if (byteCount == 0)
+            return "0" + suf[0];
+        long bytes = Math.Abs(byteCount);
+        int place = Convert.ToInt32(Math.Floor(Math.Log(bytes, 1024)));
+        double num = Math.Round(bytes / Math.Pow(1024, place), 1);
+        return (Math.Sign(byteCount) * num).ToString() + suf[place];
+    }
+
+
+    public void TrimTransparentImage(string inputPath, string outputPath)
+    {
+        using var image = Image.Load<Rgba32>(inputPath);
+
+        int width = image.Width;
+        int height = image.Height;
+
+        int top = 0;
+        int bottom = height - 1;
+        int left = 0;
+        int right = width - 1;
+
+        //https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/jump-statements
+
+        // 1 2 3 4 5
+        // 6 7 8 top
+        //
+        //
+        // 
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (image[x, y].A > 0)
+                {
+                    top = y;
+                    goto FoundTop;
+                }
+            }
+        }
+
+        FoundTop:
+
+        //
+        //
+        //
+        //6 7 8 bottom
+        //1 2 3 4 5
+        for (int y = height - 1; y >= top; y--)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (image[x, y].A > 0)
+                {
+                    bottom = y;
+                    goto FoundBottom;
+                }
+            }
+        }
+
+        FoundBottom:
+
+
+        //1 2 3 4 5
+        //left
+        //
+        //
+        //
         for (int x = 0; x < width; x++)
         {
-            if (image[x, y].A > 0)
+            for (int y = top; y <= bottom; y++)
             {
-                top = y;
-                goto FoundTop;
+                if (image[x, y].A > 0)
+                {
+                    left = x;
+                    goto FoundLeft;
+                }
             }
         }
-    }
-    FoundTop:
-    
-    //
-    //
-    //
-    //6 7 8 bottom
-    //1 2 3 4 5
-    for (int y = height - 1; y >= top; y--)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            if (image[x, y].A > 0)
-            {
-                bottom = y;
-                goto FoundBottom;
-            }
-        }
-    }
-    FoundBottom:
 
-    
-    //1 2 3 4 5
-    //left
-    //
-    //
-    //
-    for (int x = 0; x < width; x++)
-    {
-        for (int y = top; y <= bottom; y++)
-        {
-            if (image[x, y].A > 0)
-            {
-                left = x;
-                goto FoundLeft;
-            }
-        }
-    }
-    FoundLeft:
-    
-    //5 4 3 2 1
-    //        right  
-    //
-    //
-    //
-    for (int x = width - 1; x >= left; x--)
-    {
-        for (int y = top; y <= bottom; y++)
-        {
-            if (image[x, y].A > 0)
-            {
-                right = x;
-                goto FoundRight;
-            }
-        }
-    }
-    FoundRight:
-    
-    
-    // 0 0 0 0 0
-    // left-top x x x right-top
-    // x x x x x
-    // left-bottom x x x right bottom
-    // 0 0 0 0 0
-    int cropWidth = right - left + 1;
-    int cropHeight = bottom - top + 1;
-    
-    if (cropWidth > 0 && cropHeight > 0)
-    {
-        image.Mutate(ctx => ctx.Crop(new Rectangle(left, top, cropWidth, cropHeight)));
-    }
-    
-    image.Save(outputPath);
-}
+        FoundLeft:
 
+        //5 4 3 2 1
+        //        right  
+        //
+        //
+        //
+        for (int x = width - 1; x >= left; x--)
+        {
+            for (int y = top; y <= bottom; y++)
+            {
+                if (image[x, y].A > 0)
+                {
+                    right = x;
+                    goto FoundRight;
+                }
+            }
+        }
+
+        FoundRight:
+
+
+        // 0 0 0 0 0
+        // left-top x x x right-top
+        // x x x x x
+        // left-bottom x x x right bottom
+        // 0 0 0 0 0
+        int cropWidth = right - left + 1;
+        int cropHeight = bottom - top + 1;
+
+        if (cropWidth > 0 && cropHeight > 0)
+        {
+            image.Mutate(ctx => ctx.Crop(new Rectangle(left, top, cropWidth, cropHeight)));
+        }
+
+        image.Save(outputPath);
+    }
 }

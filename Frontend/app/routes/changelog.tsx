@@ -15,7 +15,6 @@ export default function Changelog()
                         <li>(Do not mind the order of this list)</li>
                         <li>Add suggestions page</li>
                         <li>Add bug report page</li>
-                        <li>Add rating</li>
                         <li>Add reports</li>
                         <li>Add rudimentary mailbox</li>
                     </ul>

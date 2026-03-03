@@ -56,4 +56,6 @@ public class Asset : Timestamp
         : $"/uploads/thumbnails/{Thumbnail}";
 
     public string FileUrl => $"/uploads/files/{Filename}";
+    
+    public string? Size { get; set; }
 }

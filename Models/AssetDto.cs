@@ -39,4 +39,5 @@ public class AssetDto : Timestamp
         : $"/uploads/thumbnails/{Thumbnail}";
 
     public string FileUrl => $"/uploads/files/{Filename}";
+    public string? Size { get; set; }
 }

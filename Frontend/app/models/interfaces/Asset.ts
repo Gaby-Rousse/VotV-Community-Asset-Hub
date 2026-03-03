@@ -19,4 +19,5 @@ export default interface Asset {
     createdAt?: string;
     preview?: string;
     previewUrl?: string;
+    size?: string;
 }
