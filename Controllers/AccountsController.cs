@@ -7,16 +7,9 @@ namespace VotVAssets.Controllers;
 //https://www.c-sharpcorner.com/article/net-api-login-and-registration-using-identity/
 [Route("api/[controller]")]
 [ApiController]
-public class AccountsController : ControllerBase
+public class AccountsController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager) : ControllerBase
 {
-    private readonly SignInManager<IdentityUser> _signInManager;
-    private readonly UserManager<IdentityUser> _userManager;
 
-    public AccountsController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
-    {
-        _userManager = userManager;
-        _signInManager = signInManager;
-    }
 
 
     [HttpPost("register")]
@@ -26,10 +19,10 @@ public class AccountsController : ControllerBase
             return BadRequest(new { error = "Password confirmation invalid." });
 
         var username = model.Username.Trim().Replace(' ', '_');
-        var existingUser = await _userManager.FindByNameAsync(username);
+        var existingUser = await userManager.FindByNameAsync(username);
         if (existingUser != null) return BadRequest(new { error = "Username already taken." });
         var user = new IdentityUser { UserName = username, Email = model.Email };
-        var result = await _userManager.CreateAsync(user, model.Password);
+        var result = await userManager.CreateAsync(user, model.Password);
         if (result.Succeeded) return Ok("Registration successful");
         return BadRequest(result.Errors);
     }
@@ -38,7 +31,7 @@ public class AccountsController : ControllerBase
     public async Task<IActionResult> Login([FromForm] LoginModel model)
     {
         var username = model.Username.Trim().Replace(' ', '_');
-        var result = await _signInManager.PasswordSignInAsync(username, model.Password, false, false);
+        var result = await signInManager.PasswordSignInAsync(username, model.Password, false, false);
         if (result.Succeeded) return Ok("Login successful");
         return Unauthorized("Invalid email or password");
     }
@@ -48,11 +41,11 @@ public class AccountsController : ControllerBase
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            var currentUser = await _userManager.FindByNameAsync(User.Identity.Name);
+            var currentUser = await userManager.FindByNameAsync(User.Identity.Name);
 
             if (currentUser == null) return Ok(new { IsAuthenticated = false });
 
-            var isAdmin = await _userManager.IsInRoleAsync(currentUser, "Admin");
+            var isAdmin = await userManager.IsInRoleAsync(currentUser, "Admin");
 
             return Ok(new
             {
@@ -69,7 +62,7 @@ public class AccountsController : ControllerBase
     [HttpGet("logout")]
     public async Task<IActionResult> Logout()
     {
-        await _signInManager.SignOutAsync();
+        await signInManager.SignOutAsync();
         return Ok();
     }
 }

@@ -1,10 +1,10 @@
 import TypeEnum from '../enums/TypeEnum';
 import type ItemEnum from "~/models/enums/ItemEnum";
+import type Artist from "~/models/interfaces/Artist";
 
 export default interface Asset {
     id: number;
     ownerId: string;
-    artistId: number;
     name: string;
     filename: string;
     item: ItemEnum;
@@ -20,4 +20,5 @@ export default interface Asset {
     preview?: string;
     previewUrl?: string;
     size?: string;
+    artist: Artist;
 }

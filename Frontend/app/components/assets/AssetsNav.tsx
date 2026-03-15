@@ -1,74 +1,92 @@
 import {Link} from "react-router";
 import TypeEnum from "~/models/enums/TypeEnum";
+import ItemEnum from "~/models/enums/ItemEnum";
+import {useFilters} from "~/context/FiltersContext";
+import {Page} from "~/models/enums/Page";
 
-export function Nav({selectedButton, setSelectedButton, toggleNavigating, isNavigating, isAuthenticated, pictureType, setPictureType}: {
-    selectedButton: string,
-    setSelectedButton: (selectedButton: string) => void
+const NAV_ITEMS: { label: string; item: ItemEnum }[] = [
+    {label: "3D Models", item: ItemEnum["3D Model"]},
+    {label: "ATV Skins", item: ItemEnum["ATV Skin"]},
+    {label: "Flags",     item: ItemEnum.Flag},
+    {label: "Pictures",  item: ItemEnum.Picture},
+    {label: "Posters",   item: ItemEnum.Poster},
+    {label: "Rugs",      item: ItemEnum.Rug},
+    {label: "Stickers",  item: ItemEnum.Sticker},
+];
+
+const PICTURE_TYPES = [
+    {label: "Horizontal", type: TypeEnum.Horizontal},
+    {label: "Square",     type: TypeEnum.Square},
+    {label: "Vertical",   type: TypeEnum.Vertical},
+    {label: "Table",      type: TypeEnum.Table},
+];
+
+export function Nav({toggleNavigating, isNavigating, isAuthenticated, page, setPage}: {
     toggleNavigating: () => void
     isNavigating: boolean
     isAuthenticated: boolean
-    pictureType: number | null;
-    setPictureType: (value: number | null) => void
+    page: Page
+    setPage: (view: Page) => void
 }) {
+    const {filters, setFilters} = useFilters();
+
     return (
-        <>
-            <div className=" flex flex-col border-solid border-3 md:m-0.5">
-                <div className="px-1 overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
-                    <Link
-                        className="computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 shrink-0 flex"
-                        to="/"><img className="size-6" alt="home"
-                                    src="https://votvbroadcast.com/images/home.png"/></Link>
-                    <ComputerButton text="3D Models" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="ATV Skins" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="Flags" selectedButton={selectedButton} setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="Pictures" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
+        <div className="flex flex-col border-solid border-3 md:m-0.5">
+            <div className="px-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-row gap-1 flex-nowrap w-full">
+                <Link className="computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 shrink-0 flex" to="/">
+                    <img className="size-6" alt="home" src="https://votvbroadcast.com/images/home.png"/>
+                </Link>
 
+                {NAV_ITEMS.map(({label, item}) => (
+                    <ComputerButton
+                        key={label}
+                        text={label}
+                        selected={filters.item === item && page === Page.Asset}
+                        onClick={() => { setPage(Page.Asset); setFilters(prev => ({...prev, item, type: TypeEnum.All})); }}
+                    />
+                ))}
 
-                    <ComputerButton text="Posters" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="Rugs" selectedButton={selectedButton} setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="Stickers" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="Radio" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
-                    <ComputerButton text="TV" selectedButton={selectedButton}
-                                    setSelectedButton={setSelectedButton}/>
+                <ComputerButton text="Radio" selected={page === Page.Radio} onClick={() => setPage(Page.Radio)}/>
+                <ComputerButton text="TV" selected={page === Page.TV} onClick={() => setPage(Page.TV)}/>
 
-                    <div className="flex flex-row ml-auto shrink-0">
-                        {isAuthenticated ? (<button
-                            onClick={() => toggleNavigating()}
-                            className={`computerButton shrink-0 border-2 w-28 border-solid p-0.5 mt-1 mb-1 mr-1 pl-4 pr-4 hover:cursor-pointer ${isNavigating ? '' : 'selected'} `}>
+                <div className="flex flex-row ml-auto shrink-0">
+                    {isAuthenticated && (
+                        <button
+                            onClick={toggleNavigating}
+                            className={`computerButton shrink-0 border-2 w-28 border-solid p-0.5 mt-1 mb-1 mr-1 pl-4 pr-4 hover:cursor-pointer ${isNavigating ? '' : 'selected'}`}>
                             Upload
-                        </button>) : ('')}
-                        <ComputerButton text="Artists" selectedButton={selectedButton}
-                                        setSelectedButton={setSelectedButton}/>
-                    </div>
+                        </button>
+                    )}
+                    <ComputerButton text="Artists" selected={page === Page.Artists} onClick={() => setPage(Page.Artists)}/>
                 </div>
-                {selectedButton == "Pictures" ? ( <div className="px-1 pb-1 overflow-visible overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
-                    <button onClick={() => setPictureType(TypeEnum.Horizontal)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Horizontal && 'selected'}`}>Horizontal</button>
-                    <button onClick={() => setPictureType(TypeEnum.Square)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Square && 'selected'}`}>Square</button>
-                    <button onClick={() => setPictureType(TypeEnum.Vertical)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Vertical && 'selected'}`}>Vertical</button>
-                    <button onClick={() => setPictureType(TypeEnum.Table)} className={`hover:cursor-pointer flex-1 dos border-2 ${pictureType == TypeEnum.Table && 'selected'}`}>Table</button>
-                </div>) : ("")}
-
             </div>
-        </>
-    )
+
+            {filters.item === ItemEnum.Picture && page === Page.Asset && (
+                <div className="px-1 pb-1 overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
+                    {PICTURE_TYPES.map(({label, type}) => (
+                        <button
+                            key={label}
+                            onClick={() => setFilters(prev => ({...prev, type}))}
+                            className={`hover:cursor-pointer flex-1 dos border-2 ${filters.type === type ? 'selected' : ''}`}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
-export function ComputerButton({text, selectedButton, setSelectedButton}: {
-    text: string,
-    selectedButton: string,
-    setSelectedButton: (value: string) => void
+export function ComputerButton({text, selected, onClick}: {
+    text: string
+    selected: boolean
+    onClick?: () => void
 }) {
     return (
         <button
-            onClick={() => setSelectedButton(text)}
-            className={`w-28 shrink-0 computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 pl-4 pr-4 ${selectedButton === text ? 'selected' : ''}`}>
+            onClick={onClick}
+            className={`w-28 shrink-0 computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 pl-4 pr-4 ${selected ? 'selected' : ''}`}>
             {text}
         </button>
-    )
+    );
 }

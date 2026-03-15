@@ -1,4 +1,5 @@
 enum TypeEnum {
+    All = -1,
     Horizontal = 0,
     Square = 1,
     Vertical = 2,

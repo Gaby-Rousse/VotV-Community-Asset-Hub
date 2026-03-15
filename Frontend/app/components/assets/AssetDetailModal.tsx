@@ -17,23 +17,19 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
     setSelectedAsset: (asset: Asset) => void,
     setTrigger: (trigger: number) => void,
 }) {
-    const [artist, setArtist] = useState<Artist | null>();
     const [asset, setAsset] = useState<Asset | null>();
     const [askConfirmation, setAskConfirmation] = useState(false);
     const {isAuthenticated, isAdmin, id: userId} = useAuth();
     const {isLoading, setIsLoading} = useLoading();
     const [lighting, setLighting] = useState(1.0);
     const [color, setColor] = useState("#000000")
+    const [copied, setCopied] = useState(false)
 
     useEffect(() => {
         setIsLoading(true);
         fetchAsset(id)
             .then(asset => {
                 setAsset(asset);
-                return fetchArtist(asset.artistId);
-            })
-            .then(artist => {
-                setArtist(artist);
             })
             .catch(err => console.error(err)).finally(() => setIsLoading(false));
     }, [id]);
@@ -48,6 +44,17 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
             alert(parsedResponse.title);
         }
     }
+    
+    function copyToClipBoard(value: string) {
+        try {
+            navigator.clipboard.writeText(value);
+        }
+        catch (error)
+        {
+            
+        }
+        setCopied(true);
+    }
 
 
 
@@ -59,11 +66,22 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                     className="flex flex-col mx-auto my-auto w-full h-full 2xl:w-2/3 2xl:h-4/5 bg-black border-2 xl:overflow-hidden overflow-y-auto">
                     <div className="flex shrink-0 w-full gap-2 h-12 border-b-2 flex-row">
                         <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{asset?.name}</div>
-                        <button onClick={() => setId(0)}
-                                className="dos shrink-0 border hover:cursor-pointer size-8 ml-auto my-auto m-1"
-                                type="button">
-                            <img src="https://votvbroadcast.com/images/cross.png"/>
-                        </button>
+                        <div>
+                            
+                        </div>
+                        <div className="flex flex-row ml-auto">
+                            <button onClick={() => copyToClipBoard(window.location.href)}
+                                    className="dos shrink-0 border hover:cursor-pointer size-8  my-auto m-1"
+                                    type="button">
+                                <img src={copied ? "https://votvbroadcast.com/images/check.png" : "https://votvbroadcast.com/images/share.png" }/>
+                            </button>
+                            <button onClick={() => setId(0)}
+                                    className="dos shrink-0 border hover:cursor-pointer size-8  my-auto m-1"
+                                    type="button">
+                                <img src="https://votvbroadcast.com/images/cross.png"/>
+                            </button>
+                        </div>
+                    
                     </div>
                     <div className="flex xl:flex-row flex-col w-full xl:h-full h-250 overflow-visible xl:overflow-hidden">
                         <div className="2xl:w-3/4 xl:max-w-3/4 w-full xl:border-r flex flex-col h-full min-h-0">
@@ -124,21 +142,21 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                         {/*Artist section*/}
                         <div className="xl:w-100 flex flex-col ">
                             <div className="flex flex-row">
-                                <img className="size-25" src={artist?.pfpUrl}/>
-                                <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{artist?.name}</div>
+                                <img className="size-25" src={asset?.artist?.pfpUrl}/>
+                                <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{asset?.artist?.name}</div>
                             </div>
                             <hr/>
                             <div className="flex flex-1 flex-col  min-h-0">
                                 <div className="flex flex-col min-h-0 p-1 h-50 xl:flex-1 mb-4">
                                     <div className="dos shrink-0">Artist Description:</div>
                                     <div className="dos overflow-y-auto">
-                                        {artist?.description}
+                                        {asset?.artist?.description}
                                     </div>
                                 </div>
                                 <div className="flex flex-col p-1 min-h-0 h-50 xl:flex-1">
                                     <div className="dos shrink-0">Socials:</div>
                                     <div className="flex-col flex overflow-y-auto">
-                                        {artist?.socials?.map((social) => {
+                                        {asset?.artist?.socials?.map((social) => {
                                             return <GenerateSocial url={social} key={social}/>
                                         })}
                                     </div>

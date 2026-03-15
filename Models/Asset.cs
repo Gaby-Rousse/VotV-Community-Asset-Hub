@@ -42,7 +42,7 @@ public class Asset : Timestamp
     public string? Thumbnail { get; set; }
     public string? Source { get; set; }
 
-    public string[]? Tags { get; set; }
+    public ICollection<Tag> Tags { get; set; } = [];
     public TypeEnum? Type { get; set; }
 
     public string? Preview { get; set; }
@@ -57,5 +57,9 @@ public class Asset : Timestamp
 
     public string FileUrl => $"/uploads/files/{Filename}";
     
-    public string? Size { get; set; }
+    public long? RawSize { get; set; }
+    
+    public Artist? Artist { get; set; }
+    
 }
+

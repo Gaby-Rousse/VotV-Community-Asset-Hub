@@ -7,7 +7,7 @@ export default function VCBAdvertisement({isNavigating}: { isNavigating: boolean
                 </div>
                 <div className="mx-auto flex flex-row gap-2 ">
                     <div className="dos">You should visit</div>
-                    <a href="" target="_blank" className="title url text-center">VotV
+                    <a href="https://votvbroadcast.com" target="_blank" className="title url text-center">VotV
                         Community Broadcaster
                     </a>
                     <div className="dos">!</div>

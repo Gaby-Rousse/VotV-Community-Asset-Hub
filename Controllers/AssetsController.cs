@@ -8,6 +8,7 @@ using Asset = VotVAssets.Models.Asset;
 using Image = SixLabors.ImageSharp.Image;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
+using VotVAssets.Models.Enums;
 
 namespace VotVAssets.Controllers;
 
@@ -20,10 +21,10 @@ public class AssetsController : ControllerBase
     private readonly UserManager<IdentityUser> _userManager;
 
 
+    [Authorize(Roles = "Admin")]
     [HttpGet("trim-all")]
     public async Task<ActionResult> TrimEverything()
     {
-        if (!User.IsInRole("Admin")) return Unauthorized();
         var assets = await _context.Assets.ToListAsync();
 
         foreach (var asset in assets)
@@ -44,22 +45,22 @@ public class AssetsController : ControllerBase
 
         return Ok("Trimmed everything successfully.");
     }
-    
+
+    [Authorize(Roles = "Admin")]
     [HttpGet("parse-all")]
-    public async Task<ActionResult>  ParseEverything()
+    public async Task<ActionResult> ParseEverything()
     {
-        if (!User.IsInRole("Admin")) return Unauthorized();
         var assets = await _context.Assets.ToListAsync();
 
         foreach (var asset in assets)
         {
-            if (asset.Size == null)
+            if (asset.RawSize == null)
             {
-                asset.Size = await HandleFilesize(asset.Filename);
+                asset.RawSize = await HandleFilesize(asset.Filename);
                 _context.Entry(asset).State = EntityState.Modified;
             }
         }
-        
+
         await _context.SaveChangesAsync();
         return Ok("Added size to files.");
     }
@@ -74,44 +75,84 @@ public class AssetsController : ControllerBase
     }
 
     // GET: api/Assets
-    //https://stackoverflow.com/a/55686482
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AssetDto>>> GetAssets(ItemEnum? Item = null)
+    public async Task<ActionResult<object>> GetAssets(
+        ItemEnum? item = null,
+        int? type = null,
+        string? search = null,
+        SearchBy searchBy = SearchBy.Name,
+        string? tags = null,
+        SortBy sort = SortBy.Alphabetical,
+        bool reverse = false,
+        string? ownerId = null,
+        int page = 1)
     {
-        var query = _context.Assets.AsQueryable();
+        const int assetsPerPage = 40;
 
-        if (Item.HasValue)
-            query = query.Where(a => a.Item == Item.Value);
+        var query = _context.Assets
+            .Include(a => a.Artist)
+            .Include(a => a.Tags)
+            .AsQueryable();
 
-        //https://learn.microsoft.com/en-us/dotnet/framework/data/adonet/ef/language-reference/method-based-query-syntax-examples-join-operators
-        //idk why we must do a select afterward
-        var joinedQuery = query.Join(
-            _context.Artists,
-            asset => asset.ArtistId,
-            artist => artist.Id,
-            (asset, artist) => new AssetDto
+        if (item.HasValue)
+            query = query.Where(a => a.Item == item.Value);
+
+        if (!string.IsNullOrWhiteSpace(search))
+            switch (searchBy)
             {
-                Id = asset.Id,
-                Name = asset.Name,
-                ArtistName = artist.Name,
-                OwnerId = asset.OwnerId,
-                ArtistId = asset.ArtistId,
-                Filename = asset.Filename,
-                Item = asset.Item,
-                Description = asset.Description,
-                Thumbnail = asset.Thumbnail,
-                Source = asset.Source,
-                Tags = asset.Tags,
-                Type = asset.Type,
-                Preview = asset.Preview,
-                CreatedAt = asset.CreatedAt,
-                UpdatedAt = asset.UpdatedAt,
-                Size = asset.Size
+                case SearchBy.Name:
+                    query = query.Where(a => a.Name.Contains(search));
+                    break;
+                case SearchBy.Artist:
+                    query = query.Where(a => a.Artist!.Name.Contains(search));
+                    break;
             }
-        );
 
-        return await joinedQuery.ToListAsync();
+
+        if (!string.IsNullOrWhiteSpace(ownerId))
+            query = query.Where(a => a.OwnerId == ownerId);
+
+        if (type.HasValue && type != -1)
+            query = query.Where(a => (int?)a.Type == (int)type);
+
+        if (!string.IsNullOrWhiteSpace(tags))
+        {
+            var tagList = tags.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.ToLower().Trim())
+                .ToList();
+            foreach (var tag in tagList)
+                query = query.Where(a => a.Tags.Any(t => t.Name == tag));
+        }
+
+        switch (sort)
+        {
+            case SortBy.Date:
+                query = reverse ? query.OrderBy(a => a.CreatedAt) : query.OrderByDescending(a => a.CreatedAt);
+                break;
+            case SortBy.Size:
+                query = reverse ? query.OrderBy(a => a.RawSize) : query.OrderByDescending(a => a.RawSize);
+                break;
+            default:
+                query = reverse ? query.OrderByDescending(a => a.Name) : query.OrderBy(a => a.Name);
+                break;
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var assets = await query
+            .Skip((page - 1) * assetsPerPage)
+            .Take(assetsPerPage)
+            .ToListAsync();
+
+        return Ok(new
+        {
+            data = assets,
+            totalCount,
+            page,
+            pageSize = assetsPerPage,
+            totalPages = (int)Math.Ceiling((double)totalCount / assetsPerPage)
+        });
     }
 
     // GET: api/Assets/5
@@ -119,7 +160,11 @@ public class AssetsController : ControllerBase
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<Asset>> GetAsset(long id)
     {
-        var asset = await _context.Assets.FindAsync(id);
+        var asset = await _context.Assets
+            .Where(a => a.Id == id)
+            .Include(a => a.Artist)
+            .Include(a => a.Tags)
+            .FirstOrDefaultAsync();
 
         if (asset == null) return NotFound();
 
@@ -148,6 +193,8 @@ public class AssetsController : ControllerBase
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
         if (thumbnail != null)
         {
+            if (thumbnail == "INVALID_TYPE")
+                return BadRequest(new { error = "Only images are allowed for thumbnail." });
             DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "thumbnails",
                 existingAsset.Thumbnail ?? ""));
             asset.Thumbnail = thumbnail;
@@ -199,7 +246,12 @@ public class AssetsController : ControllerBase
 
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
         if (thumbnail != null)
+        {
+            if (thumbnail == "INVALID_TYPE")
+                return BadRequest(new { error = "Only images are allowed for thumbnail." });
             asset.Thumbnail = thumbnail;
+        }
+
 
         var fileName = await HandleFile(Request.Form.Files["file"]);
 
@@ -230,8 +282,8 @@ public class AssetsController : ControllerBase
             }
         }
 
-        asset.Size = await HandleFilesize(fileName);
-        
+        asset.RawSize = await HandleFilesize(fileName);
+
         _context.Assets.Add(asset);
         await _context.SaveChangesAsync();
 
@@ -244,8 +296,8 @@ public class AssetsController : ControllerBase
     public async Task<IActionResult> DeleteAsset(long id)
     {
         var asset = await _context.Assets.FindAsync(id);
-        if (!User.IsInRole("Admin") && asset.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
         if (asset == null) return NotFound();
+        if (!User.IsInRole("Admin") && asset.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
 
         _context.Assets.Remove(asset);
         await _context.SaveChangesAsync();
@@ -275,6 +327,16 @@ public class AssetsController : ControllerBase
         var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "thumbnails");
 
         if (thumbnail == null) return null;
+
+        try
+        {
+            var info = await Image.IdentifyAsync(thumbnail.OpenReadStream());
+        }
+        catch (Exception)
+        {
+            return "INVALID_TYPE";
+        }
+
         var fileName = $"{Guid.NewGuid()}{Path.GetExtension(thumbnail.FileName)}";
         var fullPath = Path.Combine(uploadFolder, fileName);
 
@@ -343,26 +405,14 @@ public class AssetsController : ControllerBase
             return "INVALID_TYPE";
         }
     }
-    
-    private async Task<string?> HandleFilesize(string fileName)
+
+    private async Task<long?> HandleFilesize(string fileName)
     {
         var rootPath = _environment.ContentRootPath;
         var path = Path.Combine(rootPath, "wwwroot", "uploads", "files", fileName);
         long length = new System.IO.FileInfo(path).Length;
-        return BytesToString(length);
+        return length;
     }
-    
-    static string BytesToString(long byteCount)
-    {
-        string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
-        if (byteCount == 0)
-            return "0" + suf[0];
-        long bytes = Math.Abs(byteCount);
-        int place = Convert.ToInt32(Math.Floor(Math.Log(bytes, 1024)));
-        double num = Math.Round(bytes / Math.Pow(1024, place), 1);
-        return (Math.Sign(byteCount) * num).ToString() + suf[place];
-    }
-
 
     public void TrimTransparentImage(string inputPath, string outputPath)
     {

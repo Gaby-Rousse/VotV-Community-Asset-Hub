@@ -16,7 +16,7 @@ export default function AssetForm({item, asset, setIsNavigating}: {
     const [ratio, setRatio] = useState("1/1")
     const [tags, setTags] = useState<string[]>(asset?.tags ?? []);
     const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("/uploads/thumbnails/picture.png"))
-    const [artistId, setArtistId] = useState(asset?.artistId ?? 0);
+    const [artistId, setArtistId] = useState(asset?.artist.id ?? 0);
     const [selectedOption, setSelectedOption] = useState(asset?.type?.toString() ?? "1");
     const [error, setError] = useState("");
 
@@ -166,7 +166,7 @@ export default function AssetForm({item, asset, setIsNavigating}: {
 
                     <div className="flex items-center h-12 flex-row gap-1">
                         <div className="dos"><b className="red dos mr-1">*</b>Artist:</div>
-                        <ArtistDropdown initialArtistId={asset?.artistId ?? null}
+                        <ArtistDropdown initialArtistId={asset?.artist.id ?? null}
                                         onSelect={setArtistId}></ArtistDropdown>
                     </div>
                     {
