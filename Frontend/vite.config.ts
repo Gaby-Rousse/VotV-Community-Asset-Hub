@@ -12,7 +12,8 @@ export default defineConfig(({ command }) => ({
   server: {
     proxy: {
       '/api': 'http://10.0.0.131:5130',
-      '/uploads': 'http://10.0.0.131:5130'
+      '/uploads': 'http://10.0.0.131:5130',
+      '/temp_uploads': 'http://10.0.0.131:5130'
     }
   }
 }));

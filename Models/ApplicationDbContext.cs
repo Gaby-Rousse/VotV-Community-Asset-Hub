@@ -13,6 +13,19 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
 
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Artist> Artists { get; set; } = null!;
+    public DbSet<Tag> Tags { get; set; } = null!;
+    public DbSet<Edit> Edits { get; set; } = null!;
+    
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Tag>()
+            .HasIndex(t => t.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<Tag>().ToTable("Tag");
+    }
 
     public override int SaveChanges()
     {

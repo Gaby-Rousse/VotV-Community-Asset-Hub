@@ -11,6 +11,7 @@ export interface Filters {
     sort: SortBy;
     reverse: boolean;
     page: number;
+    ownerId: string;
 }
 
 export enum SearchBy {
@@ -33,4 +34,5 @@ export const defaultFilters: Filters = {
     sort: SortBy.Alphabetical,
     reverse: false,
     page: 1,
+    ownerId: "",
 }

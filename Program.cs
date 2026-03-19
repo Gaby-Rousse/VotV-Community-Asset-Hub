@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
+using System.Text.Json.Serialization;
 
 //https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-10.0
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -35,7 +36,10 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
     opt.UseSqlServer(

@@ -1,6 +1,7 @@
 import TypeEnum from '../enums/TypeEnum';
 import type ItemEnum from "~/models/enums/ItemEnum";
 import type Artist from "~/models/interfaces/Artist";
+import type Tag from "~/models/interfaces/Tag";
 
 export default interface Asset {
     id: number;
@@ -11,7 +12,7 @@ export default interface Asset {
     description?: string;
     thumbnail?: string;
     source?: string;
-    tags?: string[];
+    tags?: Tag[];
     type?: TypeEnum;
     thumbnailUrl?: string;
     fileUrl?: string;

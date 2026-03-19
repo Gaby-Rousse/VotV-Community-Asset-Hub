@@ -2,6 +2,7 @@ import type Artist from "~/models/interfaces/Artist";
 import {useEffect, useState} from "react";
 import {useLoading} from "~/context/LoadingContext";
 import {apiCall} from "~/components/Functions";
+import AdvancedFields from "~/components/other/AdvancedFields";
 
 export default function ArtistForm({setIsNavigating, artist, setSelectedArtist}: {
     setIsNavigating: (bool: boolean) => void,
@@ -147,8 +148,11 @@ export default function ArtistForm({setIsNavigating, artist, setSelectedArtist}:
                     ))}
                 </div>
                 <button type="submit" className="border url hover:cursor-pointer mt-3 dos">Submit!</button>
-
             </form>
+            
+          <AdvancedFields asset={artist} setNavigating={setIsNavigating}/>
+            
         </>
     )
 }
+

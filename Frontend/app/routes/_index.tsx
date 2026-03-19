@@ -1,6 +1,8 @@
 import {useState} from "react";
 import {Link} from "react-router";
 import {useAuth} from "~/context/AuthContext";
+import {defaultFilters} from "~/models/interfaces/Filters";
+import {useFilters} from "~/context/FiltersContext";
 
 export default function _index() {
     return (
@@ -16,6 +18,7 @@ export function Nav() {
     const [isOpen, setIsOpen] = useState(false);
     const {isAuthenticated} = useAuth()
     const toggleMenu = () => setIsOpen(!isOpen);
+    const {setFilters} = useFilters();
 
     return (
         <>
@@ -68,7 +71,7 @@ export function Nav() {
                     >
                         <Link className="mx-auto p-2 w-36" to="/">Home</Link>
                         <a className="mx-auto p-2 w-36" href="https://votvbroadcast.com/">VCB</a>
-                        <Link className="mx-auto p-2 w-36" to="/assets">Assets</Link>
+                        <Link onClick={() => setFilters(defaultFilters)} className="mx-auto p-2 w-36" to="/assets">Assets</Link>
                         {
                             isAuthenticated ? (
                                 <Link className="mx-auto p-2  w-36" to="/account">Account</Link>) : (

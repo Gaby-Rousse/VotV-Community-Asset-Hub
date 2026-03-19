@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace VotVAssets.Models;
 
-//Step 2: ttps://medium.com/@roshanj100/users-and-roles-seeding-in-asp-net-core-identity-with-entity-framework-core-a-step-by-step-guide-28e6f76a18db
+//Step 2: https://medium.com/@roshanj100/users-and-roles-seeding-in-asp-net-core-identity-with-entity-framework-core-a-step-by-step-guide-28e6f76a18db
 
 public static class IdentitySeeder
 {

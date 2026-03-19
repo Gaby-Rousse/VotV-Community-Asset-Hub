@@ -3,6 +3,7 @@ import TypeEnum from "~/models/enums/TypeEnum";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {useFilters} from "~/context/FiltersContext";
 import {Page} from "~/models/enums/Page";
+import {useAuth} from "~/context/AuthContext";
 
 const NAV_ITEMS: { label: string; item: ItemEnum }[] = [
     {label: "3D Models", item: ItemEnum["3D Model"]},
@@ -21,14 +22,14 @@ const PICTURE_TYPES = [
     {label: "Table",      type: TypeEnum.Table},
 ];
 
-export function Nav({toggleNavigating, isNavigating, isAuthenticated, page, setPage}: {
+export function Nav({toggleNavigating, isNavigating, page, setPage}: {
     toggleNavigating: () => void
     isNavigating: boolean
-    isAuthenticated: boolean
     page: Page
     setPage: (view: Page) => void
 }) {
     const {filters, setFilters} = useFilters();
+    const {isAuthenticated, isAdmin} = useAuth();
 
     return (
         <div className="flex flex-col border-solid border-3 md:m-0.5">
@@ -48,8 +49,11 @@ export function Nav({toggleNavigating, isNavigating, isAuthenticated, page, setP
 
                 <ComputerButton text="Radio" selected={page === Page.Radio} onClick={() => setPage(Page.Radio)}/>
                 <ComputerButton text="TV" selected={page === Page.TV} onClick={() => setPage(Page.TV)}/>
-
                 <div className="flex flex-row ml-auto shrink-0">
+                    {isAuthenticated && isAdmin && (
+                    <div className="mr-1">
+                        <ComputerButton text="Admin" selected={page === Page.Admin} onClick={() => setPage(Page.Admin)}/>
+                    </div>)}
                     {isAuthenticated && (
                         <button
                             onClick={toggleNavigating}

@@ -326,6 +326,39 @@ namespace VotVAssets.Migrations
                     b.ToTable("Assets");
                 });
 
+            modelBuilder.Entity("VotVAssets.Models.Edit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Changes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubmittedById")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Table")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TargetId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Edits");
+                });
+
             modelBuilder.Entity("VotVAssets.Models.Tag", b =>
                 {
                     b.Property<long>("Id")
@@ -336,11 +369,14 @@ namespace VotVAssets.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Tag");
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Tag", (string)null);
                 });
 
             modelBuilder.Entity("AssetTag", b =>
@@ -412,12 +448,17 @@ namespace VotVAssets.Migrations
             modelBuilder.Entity("VotVAssets.Models.Asset", b =>
                 {
                     b.HasOne("VotVAssets.Models.Artist", "Artist")
-                        .WithMany()
+                        .WithMany("Assets")
                         .HasForeignKey("ArtistId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Artist");
+                });
+
+            modelBuilder.Entity("VotVAssets.Models.Artist", b =>
+                {
+                    b.Navigation("Assets");
                 });
 #pragma warning restore 612, 618
         }

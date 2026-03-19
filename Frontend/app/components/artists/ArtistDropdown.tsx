@@ -13,20 +13,25 @@ export default function ArtistDropdown({onSelect, initialArtistId}: {
     const div = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        apiCall("/api/Artists", null)
-            .then(res => res.json())
-            .then(setArtists);
-    }, []);
+        const timeout = setTimeout(() => {
+            apiCall(`/api/Artists?search=${encodeURIComponent(search)}`, null)
+                .then(res => res.json())
+                .then(response => setArtists(response.data));
+        }, 300);
+
+        return () => clearTimeout(timeout);
+    }, [search]);
 
     useEffect(() => {
-        if (initialArtistId && artists.length > 0 && !selected) {
-            const initialArtist = artists.find(a => a.id === initialArtistId);
-            if (initialArtist) {
-                setSelected(initialArtist);
-                setSearch(initialArtist.name);
-            }
+        if (initialArtistId && !selected) {
+            apiCall(`/api/Artists/${initialArtistId}`, null)
+                .then(res => res.json())
+                .then(artist => {
+                    setSelected(artist);
+                    setSearch(artist.name);
+                });
         }
-    }, [initialArtistId, artists, selected]);
+    }, [initialArtistId]);
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -37,11 +42,7 @@ export default function ArtistDropdown({onSelect, initialArtistId}: {
         if (isOpen) document.addEventListener('mousedown', handleClick);
         return () => document.removeEventListener('mousedown', handleClick);
     }, [isOpen]);
-
-    const filtered = artists.filter(a =>
-        a.name.toLowerCase().includes(search.toLowerCase())
-    );
-
+    
     function Select(artist: Artist) {
         setSearch(artist.name);
         setSelected(artist);
@@ -72,9 +73,9 @@ export default function ArtistDropdown({onSelect, initialArtistId}: {
                 />
             </div>
 
-            {isOpen && filtered.length > 0 ? (
+            {isOpen && artists.length > 0 ? (
                 <div className="absolute z-50 w-full bg-black border border-t-0 max-h-60 overflow-y-auto">
-                    {filtered.map(a => (
+                    {artists.map(a => (
                         <div
                             key={a.id}
                             onClick={() => Select(a)}

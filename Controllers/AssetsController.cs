@@ -1,8 +1,11 @@
+using System.Text.Json;
+using ImageMagick;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 using VotVAssets.Models;
 using Asset = VotVAssets.Models.Asset;
 using Image = SixLabors.ImageSharp.Image;
@@ -14,25 +17,36 @@ namespace VotVAssets.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AssetsController : ControllerBase
+public class AssetsController(IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager) : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
-    private readonly IWebHostEnvironment _environment;
-    private readonly UserManager<IdentityUser> _userManager;
+    [Authorize]
+    [HttpPost("{id}/transfer")]
+    public async Task<IActionResult> TransferOwnership(long id, [FromForm] string newOwnerId)
+    {
+        var asset = await context.Assets.FindAsync(id);
+        if (asset == null) return NotFound();
+        if (!User.IsInRole("Admin") && asset.OwnerId != userManager.GetUserId(User)) return Unauthorized();
 
+        var newOwner = await userManager.FindByIdAsync(newOwnerId);
+        if (newOwner == null) return BadRequest(new { error = "User not found." });
 
+        asset.OwnerId = newOwnerId;
+        await context.SaveChangesAsync();
+        return Ok();
+    }
+    
     [Authorize(Roles = "Admin")]
     [HttpGet("trim-all")]
     public async Task<ActionResult> TrimEverything()
     {
-        var assets = await _context.Assets.ToListAsync();
+        var assets = await context.Assets.ToListAsync();
 
         foreach (var asset in assets)
         {
             if (asset.Thumbnail != null)
             {
                 var thumbnailPath = Path.Combine(
-                    _environment.ContentRootPath,
+                    environment.ContentRootPath,
                     "wwwroot",
                     "uploads",
                     "thumbnails",
@@ -50,28 +64,19 @@ public class AssetsController : ControllerBase
     [HttpGet("parse-all")]
     public async Task<ActionResult> ParseEverything()
     {
-        var assets = await _context.Assets.ToListAsync();
+        var assets = await context.Assets.ToListAsync();
 
         foreach (var asset in assets)
         {
             if (asset.RawSize == null)
             {
                 asset.RawSize = await HandleFilesize(asset.Filename);
-                _context.Entry(asset).State = EntityState.Modified;
+                context.Entry(asset).State = EntityState.Modified;
             }
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return Ok("Added size to files.");
-    }
-
-
-    public AssetsController(IWebHostEnvironment environment, ApplicationDbContext context,
-        UserManager<IdentityUser> userManager)
-    {
-        _environment = environment;
-        _context = context;
-        _userManager = userManager;
     }
 
     // GET: api/Assets
@@ -90,7 +95,7 @@ public class AssetsController : ControllerBase
     {
         const int assetsPerPage = 40;
 
-        var query = _context.Assets
+        var query = context.Assets
             .Include(a => a.Artist)
             .Include(a => a.Tags)
             .AsQueryable();
@@ -158,15 +163,53 @@ public class AssetsController : ControllerBase
     // GET: api/Assets/5
     [HttpGet("{id}")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public async Task<ActionResult<Asset>> GetAsset(long id)
+    public async Task<ActionResult<Asset>> GetAsset(long id, bool seeChanges = false)
     {
-        var asset = await _context.Assets
+        var asset = await context.Assets
             .Where(a => a.Id == id)
             .Include(a => a.Artist)
             .Include(a => a.Tags)
             .FirstOrDefaultAsync();
 
         if (asset == null) return NotFound();
+
+        if (seeChanges)
+        {
+            var edit = await context.Edits
+                .Where(edit => edit.TargetId == id && edit.SubmittedById == userManager.GetUserId(User) && edit.Table == Table.Asset)
+                .FirstOrDefaultAsync();
+
+            if (edit != null)
+            {
+                var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
+                
+                if (dict.TryGetValue("thumbnail", out var thumbnail))
+                    asset.Thumbnail = $"temp/{thumbnail.GetString()}";
+
+                if (dict.TryGetValue("name", out var name))
+                    asset.Name = name.ToString();
+                
+                if (dict.TryGetValue("artistId", out var artistId))
+                {
+                    var newArtistId = artistId.GetInt64();
+                    asset.ArtistId = newArtistId;
+                    asset.Artist = await context.Artists.FindAsync(newArtistId);
+                }
+                
+                if (dict.TryGetValue("description", out var description))
+                    asset.Description = description.ToString();
+                
+                if (dict.TryGetValue("source", out var source))
+                    asset.Source = source.ToString();
+
+                if (dict.TryGetValue("tags", out var tagsElement))
+                {
+                    var tagNames = tagsElement.Deserialize<string[]>() ?? [];
+                    asset.Tags = tagNames.Select(n => new Tag { Name = n }).ToList();
+                }
+            }
+        }
+        
 
         return asset;
     }
@@ -179,23 +222,133 @@ public class AssetsController : ControllerBase
     {
         if (id != asset.Id) return BadRequest();
 
-        //https://stackoverflow.com/a/56865203 goofy
-        var existingAsset = await _context.Assets.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
-        if (!User.IsInRole("Admin") && existingAsset.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
+        var existingAsset = await context.Assets
+            .AsNoTracking()
+            .Include(a => a.Tags)
+            .FirstOrDefaultAsync(a => a.Id == id);
 
-        _context.Entry(asset).State = EntityState.Modified;
+        if (existingAsset == null) return NotFound();
+        if (!User.IsInRole("Admin") && existingAsset.OwnerId != userManager.GetUserId(User))
+        {
+            var changes = new Dictionary<string, object?>();
+
+            if (asset.Name != existingAsset.Name)
+                changes["name"] = asset.Name;
+
+            if (asset.Description != existingAsset.Description)
+                changes["description"] = asset.Description;
+
+            if (asset.Source != existingAsset.Source)
+                changes["source"] = asset.Source;
+
+            if (asset.ArtistId != existingAsset.ArtistId)
+                changes["artistId"] = asset.ArtistId;
+
+            if (asset.Type != existingAsset.Type)
+                changes["type"] = asset.Type;
+
+            var tempThumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"], true);
+            if (tempThumbnail != null)
+            {
+                if (tempThumbnail == "INVALID_TYPE")
+                    return BadRequest(new { error = "Only images are allowed for thumbnail." });
+                changes["thumbnail"] = tempThumbnail;
+            }
+
+            var tempPreview = await HandlePreview(Request.Form.Files["preview"], true);
+            if (tempPreview != null)
+            {
+                if (tempPreview == "INVALID_TYPE")
+                    return BadRequest(new { error = "Only .glb files are allowed for the 3D preview" });
+                changes["preview"] = tempPreview;
+            }
+
+            var incomingTags = Request.Form["tags"]
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t!.ToLower().Trim().Replace(' ', '_'))
+                .OrderBy(t => t)
+                .ToList();
+
+            var existingTags = existingAsset.Tags?
+                .Select(t => t.Name)
+                .OrderBy(t => t)
+                .ToList() ?? new List<string>();
+
+            if (!incomingTags.SequenceEqual(existingTags))
+                changes["tags"] = incomingTags;
+
+            if (changes.Count == 0)
+                return NoContent();
+
+            var pendingEdit = await context.Edits
+                .FirstOrDefaultAsync(e =>
+                    e.TargetId == existingAsset.Id &&
+                    e.Table == Table.Asset &&
+                    e.SubmittedById == userManager.GetUserId(User));
+
+            if (pendingEdit != null)
+            {
+                var pendingChanges = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(pendingEdit.Changes);
+                
+                if (changes.ContainsKey("thumbnail"))
+                {
+                    if (pendingChanges.ContainsKey("thumbnail"))
+                    {
+                        pendingChanges.TryGetValue("thumbnail", out JsonElement oldThumbnail);
+                        DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "thumbnails", oldThumbnail.GetString() ?? ""));
+                    }
+                }
+                else if (pendingChanges.ContainsKey("thumbnail"))
+                {
+                    changes["thumbnail"] = pendingChanges["thumbnail"];
+                }
+                
+                if (changes.ContainsKey("preview"))
+                {
+                    if (pendingChanges.ContainsKey("preview"))
+                    {
+                        pendingChanges.TryGetValue("preview", out JsonElement oldPreview);
+                        DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "previews", oldPreview.GetString() ?? ""));
+                    }
+                }
+                else if (pendingChanges.ContainsKey("preview"))
+                {
+                    changes["preview"] = pendingChanges["preview"];
+                }
+
+                pendingEdit.Changes = JsonSerializer.Serialize(changes);
+            }
+            else
+            {
+                pendingEdit = new Edit
+                {
+                    SubmittedById = userManager.GetUserId(User)!,
+                    Table = Table.Asset,
+                    TargetId = existingAsset.Id,
+                    Changes = JsonSerializer.Serialize(changes)
+                };
+
+                context.Edits.Add(pendingEdit);
+            }
+
+            await context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        context.Entry(asset).State = EntityState.Modified;
 
         asset.OwnerId = existingAsset.OwnerId;
         asset.Filename = existingAsset.Filename;
-
         asset.CreatedAt = existingAsset.CreatedAt;
+        asset.RawSize = existingAsset.RawSize;
 
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
         if (thumbnail != null)
         {
             if (thumbnail == "INVALID_TYPE")
                 return BadRequest(new { error = "Only images are allowed for thumbnail." });
-            DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "thumbnails",
+            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "thumbnails",
                 existingAsset.Thumbnail ?? ""));
             asset.Thumbnail = thumbnail;
         }
@@ -206,30 +359,31 @@ public class AssetsController : ControllerBase
 
         asset.Preview = existingAsset.Preview;
 
-        if (Request.Form.Files["preview"] != null)
+
+        var preview = await HandlePreview(Request.Form.Files["preview"]);
+        if (preview != null)
         {
-            string ext = Path.GetExtension(Request.Form.Files["preview"].FileName);
-            if (string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
-            {
-                var preview = await HandlePreview(Request.Form.Files["preview"]);
-                if (preview != null)
-                {
-                    DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "previews",
-                        existingAsset.Preview ?? ""));
-                    asset.Preview = preview;
-                }
-            }
+            if (preview == "INVALID_TYPE")
+                return BadRequest(new { error = "Only .glb files are allowed for the 3D preview" });
+
+            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "previews",
+                existingAsset.Preview ?? ""));
+            asset.Preview = preview;
         }
 
 
+        var assetWithTags = await context.Assets
+            .Include(a => a.Tags)
+            .FirstAsync(a => a.Id == id);
+        await SyncTags(assetWithTags, Request.Form);
+
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch (DbUpdateConcurrencyException)
         {
             if (!AssetExists(id)) return NotFound();
-
             throw;
         }
 
@@ -242,7 +396,7 @@ public class AssetsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Asset>> PostAsset([FromForm] Asset asset)
     {
-        asset.OwnerId = _userManager.GetUserId(User);
+        asset.OwnerId = userManager.GetUserId(User);
 
         var thumbnail = await HandleThumbnail(Request.Form.Files["thumbnail"]);
         if (thumbnail != null)
@@ -268,24 +422,20 @@ public class AssetsController : ControllerBase
 
         if (asset.Item == ItemEnum.Model)
         {
-            if (Request.Form.Files["preview"] != null)
+            var preview = await HandlePreview(Request.Form.Files["preview"]);
+            if (preview != null)
             {
-                string ext = Path.GetExtension(Request.Form.Files["preview"].FileName);
-                if (string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
-                {
-                    asset.Preview = await HandlePreview(Request.Form.Files["preview"]);
-                }
-                else
-                {
-                    return BadRequest(new { error = "Preview must be a .glb file." });
-                }
+                if (preview == "INVALID_TYPE")
+                    return BadRequest(new { error = "Only .glb files are allowed for the 3D preview" });
+                asset.Preview = preview;
             }
         }
 
         asset.RawSize = await HandleFilesize(fileName);
 
-        _context.Assets.Add(asset);
-        await _context.SaveChangesAsync();
+        context.Assets.Add(asset);
+        await SyncTags(asset, Request.Form);
+        await context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetAsset), new { id = asset.Id }, asset);
     }
@@ -295,24 +445,41 @@ public class AssetsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAsset(long id)
     {
-        var asset = await _context.Assets.FindAsync(id);
+        var asset = await context.Assets.FindAsync(id);
         if (asset == null) return NotFound();
-        if (!User.IsInRole("Admin") && asset.OwnerId != _userManager.GetUserId(User)) return Unauthorized();
+        if (!User.IsInRole("Admin") && asset.OwnerId != userManager.GetUserId(User)) return Unauthorized();
+        
+        var edits = await context.Edits
+            .Where(e => e.TargetId == id && e.Table == Table.Asset)
+            .ToListAsync();
 
-        _context.Assets.Remove(asset);
-        await _context.SaveChangesAsync();
+        foreach (var edit in edits)
+        {
+            var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
+    
+            if (changes.TryGetValue("thumbnail", out var thumbnail))
+                DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "thumbnails", thumbnail.GetString()!));
+    
+            if (changes.TryGetValue("preview", out var preview))
+                DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "previews", preview.GetString()!));
+        }
+
+        context.Edits.RemoveRange(edits);
+
+        context.Assets.Remove(asset);
+        await context.SaveChangesAsync();
 
         DeleteFile(
-            Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "thumbnails", asset.Thumbnail ?? ""));
-        DeleteFile(Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "files", asset.Filename ?? ""));
+            Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "thumbnails", asset.Thumbnail ?? ""));
+        DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "files", asset.Filename ?? ""));
         DeleteFile(
-            Path.Combine(_environment.ContentRootPath, "wwwroot", "uploads", "previews", asset.Preview ?? ""));
+            Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "previews", asset.Preview ?? ""));
         return NoContent();
     }
 
     private bool AssetExists(long id)
     {
-        return _context.Assets.Any(e => e.Id == id);
+        return context.Assets.Any(e => e.Id == id);
     }
 
     private void DeleteFile(string filepath)
@@ -321,12 +488,12 @@ public class AssetsController : ControllerBase
             System.IO.File.Delete(filepath);
     }
 
-    private async Task<string?> HandleThumbnail(IFormFile? thumbnail)
+    private async Task<string?> HandleThumbnail(IFormFile? thumbnail, bool temp = false)
     {
-        var rootPath = _environment.ContentRootPath;
-        var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "thumbnails");
-
         if (thumbnail == null) return null;
+
+        var rootPath = environment.ContentRootPath;
+        var uploadFolder = Path.Combine(rootPath, "wwwroot", temp ? "temp_uploads" : "uploads", "thumbnails");
 
         try
         {
@@ -345,17 +512,27 @@ public class AssetsController : ControllerBase
             await thumbnail.CopyToAsync(stream);
         }
 
-        TrimTransparentImage(fullPath, fullPath);
+        await Task.Run(() =>
+        {
+            TrimTransparentImage(fullPath, fullPath);
+            var optimizer = new ImageOptimizer();
+            optimizer.Compress(fullPath);
+        });
 
         return fileName;
     }
 
-    private async Task<string?> HandlePreview(IFormFile? preview)
+    private async Task<string?> HandlePreview(IFormFile? preview, bool temp = false)
     {
-        var rootPath = _environment.ContentRootPath;
-        var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "previews");
-
         if (preview == null) return null;
+
+        string ext = Path.GetExtension(Request.Form.Files["preview"].FileName);
+        if (!string.Equals(ext, ".glb", StringComparison.OrdinalIgnoreCase))
+            return "INVALID_TYPE";
+
+        var rootPath = environment.ContentRootPath;
+        var uploadFolder = Path.Combine(rootPath, "wwwroot", temp ? "temp_uploads" : "uploads", "previews");
+
         var fileName = $"{Guid.NewGuid()}{Path.GetExtension(preview.FileName)}";
         var fullPath = Path.Combine(uploadFolder, fileName);
 
@@ -371,7 +548,7 @@ public class AssetsController : ControllerBase
     {
         if (file == null) return null;
 
-        var rootPath = _environment.ContentRootPath;
+        var rootPath = environment.ContentRootPath;
         var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "files");
 
         var fileName = $"{Guid.NewGuid()}";
@@ -408,13 +585,13 @@ public class AssetsController : ControllerBase
 
     private async Task<long?> HandleFilesize(string fileName)
     {
-        var rootPath = _environment.ContentRootPath;
+        var rootPath = environment.ContentRootPath;
         var path = Path.Combine(rootPath, "wwwroot", "uploads", "files", fileName);
         long length = new System.IO.FileInfo(path).Length;
         return length;
     }
 
-    public void TrimTransparentImage(string inputPath, string outputPath)
+    private void TrimTransparentImage(string inputPath, string outputPath)
     {
         using var image = Image.Load<Rgba32>(inputPath);
 
@@ -520,5 +697,24 @@ public class AssetsController : ControllerBase
         }
 
         image.Save(outputPath);
+    }
+
+    private async Task SyncTags(Asset asset, IFormCollection form)
+    {
+        asset.Tags.Clear();
+
+        var tagNames = form["tags"]
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!.ToLower().Trim().Replace(' ', '_'))
+            .Distinct()
+            .Take(10)
+            .ToList();
+
+        foreach (var name in tagNames)
+        {
+            var tag = await context.Tags.FirstOrDefaultAsync(t => t.Name == name)
+                      ?? new Tag { Name = name };
+            asset.Tags.Add(tag);
+        }
     }
 }

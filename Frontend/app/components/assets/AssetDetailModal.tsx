@@ -126,16 +126,18 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                 <div className="dos overflow-y-auto flex-1 min-h-0">
                                     {asset?.description ?? "No description available"}
                                 </div>
-                                <div className="flex max-h-6 line-clamp-1 flex-row">
+                                <div className="flex max-h-6 gap-1 line-clamp-1 flex-row">
                                     <div className="dos shrink-0">Source:</div>
                                     <div className="dos overflow-y-auto ">   {asset?.source ?? "No source was provided"}</div>
                                 </div>
                                
                                 <div className="dos overflow-y-auto items-center gap-1 flex flex-row h-9 mt-auto min-h-0">
                                     <div>Tags:</div>
-                                    {asset?.tags != null ? (asset.tags?.map((tag) => {
-                                        return <><div className="border p-1 flex"><div className="my-auto">•{tag}</div></div></>
-                                    })) : ("Not tagged")}
+                                    {asset?.tags && asset.tags.length > 0 ? asset.tags?.map((tag) => (
+                                        <div key={tag.id} className="border p-1 flex">
+                                            <div className="my-auto">•{tag.name}</div>
+                                        </div>
+                                    )) : ("Not tagged")}
                                 </div>
                             </div>
                         </div>
@@ -173,41 +175,45 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                         </div>
                         <div className="flex flex-row  mx-auto sm:ml-auto sm:mr-1 gap-1 ">
                             {isAuthenticated ? (
-                                (isAdmin || userId == (asset?.ownerId ?? 0)) ? (
-                                    <>
-                                        {askConfirmation ? (
-                                            <button onClick={() => deleteAsset(asset?.id ?? 0)}
-                                                    className="dos red shrink-0 border hover:cursor-pointer my-auto">
-                                                <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
-                                                    <img className="size-7"
-                                                         src="https://votvbroadcast.com/images/trash2.png"/>
-                                                    <div className="dos red my-auto">Confirm deletion</div>
-                                                </div>
-                                            </button>
-                                        ) : (
-                                            <button onClick={() => setAskConfirmation(true)}
-                                                    className="dos shrink-0 border hover:cursor-pointer my-auto">
-                                                <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
-                                                    <img className="size-7"
-                                                         src="https://votvbroadcast.com/images/trash.png"/>
-                                                    <div className="dos my-auto">Delete</div>
-                                                </div>
-                                            </button>
-                                        )}
-                                        <button onClick={(e) => {
-                                            e.stopPropagation();
-                                            fetchAsset(asset?.id ?? 0).then(data => setSelectedAsset(data));
+                                <>
+                                    {(isAdmin || userId == (asset?.ownerId ?? 0)) ? (
+                                        <>
+                                            {askConfirmation ? (
+                                                <button onClick={() => deleteAsset(asset?.id ?? 0)}
+                                                        className="dos red shrink-0 border hover:cursor-pointer my-auto">
+                                                    <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
+                                                        <img className="size-7"
+                                                             src="https://votvbroadcast.com/images/trash2.png"/>
+                                                        <div className="dos red my-auto">Confirm deletion</div>
+                                                    </div>
+                                                </button>
+                                            ) : (
+                                                <button onClick={() => setAskConfirmation(true)}
+                                                        className="dos shrink-0 border hover:cursor-pointer my-auto">
+                                                    <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
+                                                        <img className="size-7"
+                                                             src="https://votvbroadcast.com/images/trash.png"/>
+                                                        <div className="dos my-auto">Delete</div>
+                                                    </div>
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : ("")}
+                                    <button onClick={(e) => {
+                                        e.stopPropagation();
+                                        fetchAsset(asset?.id ?? 0, true).then(data => {
+                                            setSelectedAsset(data);
                                             setIsNavigating(false);
-                                        }}
-                                                className="dos shrink-0 border hover:cursor-pointer my-auto">
-                                            <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
-                                                <img className="size-7"
-                                                     src="https://votvbroadcast.com/images/pencil.png"/>
-                                                <div className="dos my-auto">Edit</div>
-                                            </div>
-                                        </button>
-                                    </>
-                                ) : ("")
+                                        });
+                                    }}
+                                            className="dos shrink-0 border hover:cursor-pointer my-auto">
+                                        <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
+                                            <img className="size-7"
+                                                 src="https://votvbroadcast.com/images/pencil.png"/>
+                                            <div className="dos my-auto">Edit</div>
+                                        </div>
+                                    </button>
+                                </>
                             ) : ("")}
                             <button onClick={() => downloadFile(asset?.fileUrl ?? "", asset?.filename ?? "")}
                                     className="dos shrink-0 border hover:cursor-pointer my-auto">
@@ -230,7 +236,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
     )
 }
 
-function Model({url}: { url: string }) {
+export function Model({url}: { url: string }) {
     const {scene} = useGLTF(url);
     return <primitive object={scene}/>;
 }

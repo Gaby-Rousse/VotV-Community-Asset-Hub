@@ -1,5 +1,7 @@
 import { createContext, useContext, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { defaultFilters, type Filters } from "~/models/interfaces/Filters";
+import { useSearchParams } from "react-router";
+import { paramsToFilters } from "~/helpers/filterParams";
 
 interface FiltersContextType {
     filters: Filters;
@@ -12,7 +14,8 @@ const FilterContext = createContext<FiltersContextType>({
 });
 
 export const FiltersProvider = ({ children }: any) => {
-    const [filters, setFilters] = useState<Filters>(defaultFilters);
+    const [searchParams] = useSearchParams();
+    const [filters, setFilters] = useState<Filters>(() => paramsToFilters(searchParams));
     const value = useMemo(() => ({ filters, setFilters }), [filters]);
     return (
         <FilterContext.Provider value={value}>

@@ -8,12 +8,16 @@ import {useSearchParams} from "react-router";
 import {defaultFilters, type Filters, SearchBy, SortBy} from "~/models/interfaces/Filters";
 import {defaultInfo, type Info} from "~/models/interfaces/Info";
 import {useFilters} from "~/context/FiltersContext";
+import {filtersToParams, paramsToFilters} from "~/helpers/filterParams";
+
+type TagSuggestion = { name: string, count: number };
 
 export default function ListAssets({setIsNavigating, setSelectedAsset}: {
     setIsNavigating: (item: boolean) => void,
     setSelectedAsset: (value: Asset) => void,
 }) {
-    let [searchParams, setSearchParams] = useSearchParams();
+    const { filters, setFilters } = useFilters();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [assets, setAssets] = useState<Asset[]>([]);
     const [info, setInfo] = useState<Info>(defaultInfo);
     const [assetId, setAssetId] = useState(parseInt(searchParams.get("assetId") ?? "0"));
@@ -24,66 +28,145 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
     const [timeTaken, setTimeTaken] = useState(0.0);
     //0 thumbnail, 1 list, 2 posts
     const [display, setDisplay] = useState(0);
-    const [tagQuery, setTagQuery] = useState("")
-    const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+    const [tagQuery, setTagQuery] = useState(filters.tags.join(" "))
+    const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+
+
+    useEffect(() => {
+        const fromInput = tagQuery.trim().split(/\s+/).filter(Boolean);
+        const fromFilters = filters.tags;
+        if (fromInput.join(" ") !== fromFilters.join(" ")) {
+            setTagQuery(filters.tags.join(" "));
+        }
+    }, [filters.tags]);
     
-    const {filters, setFilters} = useFilters();
+    useEffect(() => {
+        const params = filtersToParams(filters);
+        const assetId = searchParams.get("assetId");
+        if (assetId) params.set("assetId", assetId);
+        setSearchParams(params, { replace: true });
+    }, [filters]);
+
+    useEffect(() => {
+        const delay = filters.search !== "" || filters.tags.length > 0 ? 300 : 0;
+
+        const timeout = setTimeout(() => {
+            let start = performance.now();
+            setIsLoading(true);
+            const url = `/api/Assets?${filtersToParams(filters).toString()}`;
+            apiCall(url, null).then(res => res.json())
+                .then(response => {
+                    setAssets(response.data);
+                    setInfo({totalCount: response.totalCount, totalPages: response.totalPages});
+                    setTimeTaken(performance.now() - start);
+                })
+                .catch(err => console.error('Failed to fetch assets:', err))
+                .finally(() => setIsLoading(false));
+        }, delay);
+
+        return () => clearTimeout(timeout);
+    }, [trigger, filters]);
 
     function updateAssetId(assetId: number) {
-        if (assetId == 0)
-            setSearchParams({});
-        else
-            setSearchParams({assetId: assetId.toString()});
+        const params = filtersToParams(filters);
+        if (assetId === 0) {
+            params.delete("assetId");
+        } else {
+            params.set("assetId", assetId.toString());
+        }
+        setSearchParams(params, { replace: true });
         setAssetId(assetId);
     }
 
     useEffect(() => {
-        let start = performance.now()
-        setIsLoading(true);
-        const params = new URLSearchParams();
-        Object.entries(filters).forEach(([key, value]) => {
-                params.append(key, value);
-        });
-        const url = `/api/Assets?${params.toString()}`;
-        apiCall(url, null).then(res => res.json())
-            .then(response => {
-                setAssets(response.data);
-                setInfo({totalCount: response.totalCount, totalPages: response.totalPages})
-                setTimeTaken(performance.now() - start);
-            })
-            .catch(err => console.error('Failed to fetch assets:', err)).finally(() => setIsLoading(false));
-    }, [trigger, filters]);
-
-    useEffect(() => {
-        setFilters(prevState => ({...prevState, page:1}))
+        setFilters(prevState => ({...prevState, page: 1}))
     }, [filters.item]);
+
+    async function fetchTagSuggestions(prefix: string) {
+        if (prefix.length === 0) {
+            setTagSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+        const res = await apiCall(`/api/Tags?prefix=${encodeURIComponent(prefix)}&item=${filters.item}`, null, "GET");
+        const data = await res.json();
+        setTagSuggestions(data);
+        setShowSuggestions(data.length > 0);
+    }
+
+    function handleTagInput(e: React.ChangeEvent<HTMLInputElement>) {
+        const value = e.target.value;
+        setTagQuery(value);
+        const lastWord = value.split(" ").pop() ?? "";
+        fetchTagSuggestions(lastWord);
+        setFilters(prev => ({
+            ...prev,
+            tags: value.trim().split(/\s+/).filter(t => t.length > 0),
+            page: 1
+        }));
+    }
+
+    function selectSuggestion(tag: TagSuggestion) {
+        const parts = tagQuery.split(" ");
+        parts[parts.length - 1] = tag.name + " ";
+        const newQuery = parts.join(" ");
+        setTagQuery(newQuery);
+        setTagSuggestions([]);
+        setShowSuggestions(false);
+        setFilters(prev => ({
+            ...prev,
+            tags: newQuery.trim().split(/\s+/).filter(t => t.length > 0),
+            page: 1
+        }));
+        inputRef.current?.focus();
+    }
 
     return (
         <>
             {assetId != 0 ? (<AssetDetailModal id={assetId} setId={updateAssetId} setSelectedAsset={setSelectedAsset}
                                                setIsNavigating={setIsNavigating} setTrigger={setTrigger}/>) : ("")}
 
-            <div className="flex max-w-full w-full min-w-0 flex-row gap-1 mt-1 mx-0.5">
+            <div className="flex max-w-full flex-wrap sm:flex-nowrap justify-center sm:justify-left w-full min-w-0 flex-row gap-1 mt-1 mx-0.5">
                 <div className="flex flex-row items-center dos">
-                    <button className="px-2" onClick={() => setFilters(prevState => ({ ...prevState, page: Math.max(1, Math.min(prevState.page - 1, info.totalPages))}))}>&lt;</button>
+                    <button className="px-2"
+                            onClick={() => setFilters(prevState => ({
+                                ...prevState,
+                                page: Math.max(1, Math.min(prevState.page - 1, info.totalPages))
+                            }))}>&lt;</button>
                     <div className="flex flex-row">
                         <div>{filters.page}</div>
                         <div>/</div>
                         <div>{info.totalPages}</div>
                     </div>
-                    <button className="px-2" onClick={() => setFilters(prevState => ({ ...prevState, page: Math.max(1, Math.min(prevState.page + 1, info.totalPages))}))}>&gt;</button>
+                    <button className="px-2"
+                            onClick={() => setFilters(prevState => ({
+                                ...prevState,
+                                page: Math.max(1, Math.min(prevState.page + 1, info.totalPages))
+                            }))}>&gt;</button>
                 </div>
-                <input type="text" onChange={(e) => setFilters(prevState => ({ ...prevState, search: e.target.value }))} className="dos text-center border w-full"
+                <button onClick={() => setFilters(defaultFilters)}
+                        className={`dos border md:whitespace-nowrap hover:cursor-pointer px-1 shrink-0`}>
+                    <img className="size-5" src="noFilters.png" alt="noFilters"/>
+                </button>
+                <input type="text"
+                       value={filters.search ?? ""}
+                       onChange={(e) => setFilters(prevState => ({...prevState, search: e.target.value}))}
+                       className="dos text-center mr-1 mb-0.5 sm:m-0 border w-full"
                        placeholder="Search..."/>
-                <button onClick={() => setFilters(prevState => ({ ...prevState, searchBy: SearchBy.Name }))}
+                <button onClick={() => setFilters(prevState => ({...prevState, searchBy: SearchBy.Name}))}
                         className={`dos border md:whitespace-nowrap hover:cursor-pointer px-2 ${filters.searchBy == SearchBy.Name ? ("selected") : ("")}`}>By
                     Title
                 </button>
-                <button onClick={() => setFilters(prevState => ({ ...prevState, searchBy: SearchBy.Artist }))}
-                        className={`dos border mr-1 md:whitespace-nowrap hover:cursor-pointer px-2 ${filters.searchBy == SearchBy.Artist ? ("selected") : ("")}`}>By
+                <button onClick={() => setFilters(prevState => ({...prevState, searchBy: SearchBy.Artist}))}
+                        className={`dos border md:whitespace-nowrap hover:cursor-pointer px-2 ${filters.searchBy == SearchBy.Artist ? ("selected") : ("")}`}>By
                     Artist
+                </button>
+                <button
+                    onClick={() => setFilters(prevState => ({...prevState, ownerId: prevState.ownerId === id ? "" : id}))}
+                    className={`dos border mr-1 md:whitespace-nowrap hover:cursor-pointer px-2 ${filters.ownerId === id ? "selected" : ""}`}>
+                    Owned
                 </button>
             </div>
             <div
@@ -102,7 +185,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                                     <div className="dos line-clamp-1 my-auto text-center">{a.name}</div>
                                 </div>
                                 <div className="absolute px-1 bottom-0 h-20 w-full flex flex-col bg-black/50">
-                                    <div className="dos truncate">By: {a.artist.name} </div>
+                                    <div className="dos truncate">By: {a.artist.name}</div>
                                     <div className="dos">Size: {a.size ?? "N/A"}</div>
                                     <div className="dos text-center mt-auto">{humanDate(a.createdAt ?? "")}</div>
                                 </div>
@@ -161,10 +244,9 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                             <input
                                 ref={inputRef}
                                 type="text"
-                                value={tagQuery}/*
+                                value={tagQuery}
                                 onChange={handleTagInput}
                                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                                */
                                 className="dos text-center border w-full"
                                 placeholder="Tags (separated by spaces)"/>
                             {showSuggestions && (
@@ -172,13 +254,11 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                                     className="absolute z-20 left-0 right-0 border border-white bg-black bottom-full mb-0.5">
                                     {tagSuggestions.map(tag => (
                                         <div
-                                            key={tag}
-                                            /*
-                                            onMouseDown={() => selectSuggestion(tag)} */
+                                            key={tag.name}
+                                            onMouseDown={() => selectSuggestion(tag)}
                                             className="dos px-2 url py-0.5 hover:cursor-pointer flex justify-between">
-                                            <span className=" w-full">{tag}</span>
-                                            {/*
-                                            <span className="opacity-50">{tagCounts.get(tag)}</span> */}
+                                            <span className="w-full">{tag.name}</span>
+                                            <span className="opacity-50">({tag.count})</span>
                                         </div>
                                     ))}
                                 </div>
@@ -187,17 +267,18 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                     </div>
                     <div className="flex flex-row mt-1 items-center gap-1">
                         <div>Order by:</div>
-                        <button onClick={() => setFilters(prevState => ({ ...prevState, sort: SortBy.Alphabetical }))}
+                        <button onClick={() => setFilters(prevState => ({...prevState, sort: SortBy.Alphabetical}))}
                                 className={`border ${filters.sort == SortBy.Alphabetical && ("selected")} w-36 p-1`}>Alphabetically
                         </button>
-                        <button onClick={() => setFilters(prevState => ({ ...prevState, sort: SortBy.Date }))}
+                        <button onClick={() => setFilters(prevState => ({...prevState, sort: SortBy.Date}))}
                                 className={`border ${filters.sort == SortBy.Date && ("selected")} w-36 p-1`}>Date
                         </button>
-                        <button onClick={() => setFilters(prevState => ({ ...prevState, sort: SortBy.Size }))}
+                        <button onClick={() => setFilters(prevState => ({...prevState, sort: SortBy.Size}))}
                                 className={`border ${filters.sort == SortBy.Size && ("selected")} w-36 p-1`}>Size
                         </button>
-                        <button onClick={() => setFilters(prevState => ({ ...prevState, reverse: !prevState.reverse }))}
-                                className={`border ml-5 ${filters.reverse && ("selected")} w-36 p-1`}>Reverse
+                        <button
+                            onClick={() => setFilters(prevState => ({...prevState, reverse: !prevState.reverse}))}
+                            className={`border ml-5 ${filters.reverse && ("selected")} w-36 p-1`}>Reverse
                         </button>
                     </div>
                 </div>)}

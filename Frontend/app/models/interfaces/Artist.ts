@@ -6,4 +6,5 @@ export default interface Artist {
     socials?: string[];
     pfp?: string;
     pfpUrl?: string;
+    assetCount: number;
 }
