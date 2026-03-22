@@ -185,7 +185,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                                     <div className="dos line-clamp-1 my-auto text-center">{a.name}</div>
                                 </div>
                                 <div className="absolute px-1 bottom-0 h-20 w-full flex flex-col bg-black/50">
-                                    <div className="dos truncate">By: {a.artist.name}</div>
+                                    <div className="dos truncate">By: {a.artistName}</div>
                                     <div className="dos">Size: {a.size ?? "N/A"}</div>
                                     <div className="dos text-center mt-auto">{humanDate(a.createdAt ?? "")}</div>
                                 </div>
@@ -206,7 +206,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                                     <img loading="lazy" className="size-8 shrink-0 object-contain"
                                          src={a.thumbnailUrl}/>
                                     <div className="flex-1 min-w-0 truncate">{a.name}</div>
-                                    <div className="w-30 md:w-40 lg:w-60 shrink-0 truncate">{a.artist.name}</div>
+                                    <div className="w-30 md:w-40 lg:w-60 shrink-0 truncate">{a.artistName}</div>
                                     <div className="hidden md:flex w-25 shrink-0">{humanDate(a.createdAt ?? "")}</div>
                                 </div>
                             ))}

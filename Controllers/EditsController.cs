@@ -11,6 +11,7 @@ using VotVAssets.Models;
 [ApiController]
 public class EditsController(IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager) : ControllerBase
 {
+    [Authorize(Roles = "Admin")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet]
     public async Task<ActionResult> GetEdits()

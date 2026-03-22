@@ -14,16 +14,16 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
 
     [Authorize]
     [HttpPost("{id}/transfer")]
-    public async Task<IActionResult> TransferOwnership(long id, [FromForm] string newOwnerId)
+    public async Task<IActionResult> TransferOwnership(long id, [FromForm] string username)
     {
         var artist = await context.Artists.FindAsync(id);
         if (artist == null) return NotFound();
         if (!User.IsInRole("Admin") && artist.OwnerId != userManager.GetUserId(User)) return Unauthorized();
 
-        var newOwner = await userManager.FindByIdAsync(newOwnerId);
+        var newOwner = await userManager.FindByNameAsync(username.Replace(" ","_"));
         if (newOwner == null) return BadRequest(new { error = "User not found." });
 
-        artist.OwnerId = newOwnerId;
+        artist.OwnerId = newOwner.Id;
         await context.SaveChangesAsync();
         return Ok();
     }

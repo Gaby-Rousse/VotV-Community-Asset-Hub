@@ -19,6 +19,24 @@ export default function Changelog()
                         <li>Add rudimentary mailbox</li>
                     </ul>
                 </div>
+                <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.2.0
+                    (03/20/2026)
+                </div>
+                <div className="flex flex-col gap-2 mt-2 mb-6 items-center sm:items-baseline ">
+                    <ul>
+                        <li>Added proposal system</li>
+                        <li className="ml-5">You can propose edits to files you don't own</li>
+                        <li className="ml-5">Admin rejects or approve your proposals</li>
+                        <li className="ml-5">You can remove your proposals in the advanced fields of a media</li>
+                        <li>You can transfer the ownership of an asset to someone</li>
+                        <li>Filters are now only server side. You also won't load all assets all at once</li>
+                        <li className="ml-5">Added pagination, 40 assets/artists per page</li>
+                        <li className="ml-5">Added sort by filesize</li>
+                        <li className="ml-5">You can share a page with your filters (so users see the same result as you)</li>
+                        <li className="ml-5">Tags are now centralized. If the tags you're adding exists on another assets, it will be suggested</li>
+                        <li>Thumbnails are now compressed and are extremely faster to load.</li>
+                    </ul>
+                </div>
                 <div className=" text-xl sm:text-2xl md:text-3xl lg:text-4xl subtitle sm:text-left text-center">v0.1.0.5
                     (03/03/2026)
                 </div>

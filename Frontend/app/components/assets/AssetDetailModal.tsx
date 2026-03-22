@@ -133,9 +133,9 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                
                                 <div className="dos overflow-y-auto items-center gap-1 flex flex-row h-9 mt-auto min-h-0">
                                     <div>Tags:</div>
-                                    {asset?.tags && asset.tags.length > 0 ? asset.tags?.map((tag) => (
-                                        <div key={tag.id} className="border p-1 flex">
-                                            <div className="my-auto">•{tag.name}</div>
+                                    {asset?.tags && asset.tags.length > 0 ? asset.tags?.map((tag, index) => (
+                                        <div key={index} className="border p-1 flex">
+                                            <div className="my-auto">•{tag}</div>
                                         </div>
                                     )) : ("Not tagged")}
                                 </div>

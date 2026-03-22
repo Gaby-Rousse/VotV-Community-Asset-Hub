@@ -93,7 +93,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     ContentTypeProvider = provider,
     ServeUnknownFileTypes = true,
-    DefaultContentType = "application/octet-stream"
+    DefaultContentType = "application/octet-stream",
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000"; 
+    }
+    
 });
 
 app.UseAuthentication();
@@ -117,5 +122,12 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     await IdentitySeeder.SeedRolesAndAdminAsync(services);
 }
+
+if (args.Contains("--resize-images"))
+{
+    await ResizeMigrationJob.RunAsync(app.Services);
+    return;
+}
+
 
 app.Run();

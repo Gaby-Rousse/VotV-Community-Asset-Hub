@@ -12,6 +12,7 @@ using Image = SixLabors.ImageSharp.Image;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using VotVAssets.Models.Enums;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace VotVAssets.Controllers;
 
@@ -21,16 +22,16 @@ public class AssetsController(IWebHostEnvironment environment, ApplicationDbCont
 {
     [Authorize]
     [HttpPost("{id}/transfer")]
-    public async Task<IActionResult> TransferOwnership(long id, [FromForm] string newOwnerId)
+    public async Task<IActionResult> TransferOwnership(long id, [FromForm] string username)
     {
         var asset = await context.Assets.FindAsync(id);
         if (asset == null) return NotFound();
         if (!User.IsInRole("Admin") && asset.OwnerId != userManager.GetUserId(User)) return Unauthorized();
 
-        var newOwner = await userManager.FindByIdAsync(newOwnerId);
+        var newOwner = await userManager.FindByNameAsync(username.Replace(" ","_"));
         if (newOwner == null) return BadRequest(new { error = "User not found." });
 
-        asset.OwnerId = newOwnerId;
+        asset.OwnerId = newOwner.Id;
         await context.SaveChangesAsync();
         return Ok();
     }
@@ -147,7 +148,15 @@ public class AssetsController(IWebHostEnvironment environment, ApplicationDbCont
 
         var assets = await query
             .Skip((page - 1) * assetsPerPage)
-            .Take(assetsPerPage)
+            .Take(assetsPerPage).Select(a => new {
+                a.Id,
+                a.Name,
+                a.ThumbnailUrl,
+                a.FileUrl,
+                a.Size,
+                a.CreatedAt,
+                ArtistName = a.Artist!.Name,
+            })
             .ToListAsync();
 
         return Ok(new
@@ -211,7 +220,26 @@ public class AssetsController(IWebHostEnvironment environment, ApplicationDbCont
         }
         
 
-        return asset;
+        return Ok(new {
+            asset.Id,
+            asset.Name,
+            asset.ThumbnailUrl,
+            asset.FileUrl,
+            asset.PreviewUrl,
+            asset.Size,
+            asset.Item,
+            asset.Type,
+            asset.Description,
+            asset.Source,
+            Artist = asset.Artist == null ? null : new {
+                asset.Artist.Id,
+                asset.Artist.Name,
+                asset.Artist.Description,
+                asset.Artist.Socials,
+                asset.Artist.PfpUrl,
+            },
+            Tags = asset.Tags.Select(t => t.Name)
+        });
     }
 
     // PUT: api/Assets/5
@@ -504,21 +532,16 @@ public class AssetsController(IWebHostEnvironment environment, ApplicationDbCont
             return "INVALID_TYPE";
         }
 
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(thumbnail.FileName)}";
+        var fileName = $"{Guid.NewGuid()}.webp";
         var fullPath = Path.Combine(uploadFolder, fileName);
 
         await using (var stream = new FileStream(fullPath, FileMode.Create))
         {
             await thumbnail.CopyToAsync(stream);
         }
-
-        await Task.Run(() =>
-        {
-            TrimTransparentImage(fullPath, fullPath);
-            var optimizer = new ImageOptimizer();
-            optimizer.Compress(fullPath);
-        });
-
+      
+        TrimTransparentImage(fullPath, fullPath);
+        
         return fileName;
     }
 
@@ -591,7 +614,7 @@ public class AssetsController(IWebHostEnvironment environment, ApplicationDbCont
         return length;
     }
 
-    private void TrimTransparentImage(string inputPath, string outputPath)
+    private async void TrimTransparentImage(string inputPath, string outputPath)
     {
         using var image = Image.Load<Rgba32>(inputPath);
 
@@ -695,8 +718,31 @@ public class AssetsController(IWebHostEnvironment environment, ApplicationDbCont
         {
             image.Mutate(ctx => ctx.Crop(new Rectangle(left, top, cropWidth, cropHeight)));
         }
+        
+        ResizeImage2(image, outputPath);
+    }
 
-        image.Save(outputPath);
+    private void ResizeImage(string inputPath, string outputPath)
+    {
+        using var image = Image.Load<Rgba32>(inputPath);
+        image.Mutate(ctx => ctx.Resize(new ResizeOptions
+        { 
+            Size = new Size(800, 0),
+            Mode = ResizeMode.Max
+        }));
+        var encoder = new WebpEncoder { Quality = 75 };
+        image.SaveAsWebp(outputPath,encoder);
+    }
+    
+    private void ResizeImage2(Image image,  string outputPath)
+    {
+        image.Mutate(ctx => ctx.Resize(new ResizeOptions
+        { 
+            Size = new Size(800, 0),
+            Mode = ResizeMode.Max
+        }));
+        var encoder = new WebpEncoder { Quality = 75 };
+        image.SaveAsWebp(outputPath,encoder);
     }
 
     private async Task SyncTags(Asset asset, IFormCollection form)

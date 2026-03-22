@@ -33,7 +33,7 @@ export function Nav({toggleNavigating, isNavigating, page, setPage}: {
 
     return (
         <div className="flex flex-col border-solid border-3 md:m-0.5">
-            <div className="px-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-row gap-1 flex-nowrap w-full">
+            <div className="px-1 overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
                 <Link className="computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 shrink-0 flex" to="/">
                     <img className="size-6" alt="home" src="https://votvbroadcast.com/images/home.png"/>
                 </Link>

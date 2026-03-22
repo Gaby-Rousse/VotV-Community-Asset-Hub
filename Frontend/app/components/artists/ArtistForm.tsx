@@ -61,8 +61,7 @@ export default function ArtistForm({setIsNavigating, artist, setSelectedArtist}:
                     let parsedResponse = await response.json()
                     setError(parsedResponse.error);
                 }
-            }
-            finally {
+            } finally {
                 setIsLoading(false)
             }
         } else {
@@ -76,8 +75,7 @@ export default function ArtistForm({setIsNavigating, artist, setSelectedArtist}:
                     let parsedResponse = await response.json()
                     setError(parsedResponse.error);
                 }
-            }
-            finally {
+            } finally {
                 setIsLoading(false)
             }
         }
@@ -96,62 +94,64 @@ export default function ArtistForm({setIsNavigating, artist, setSelectedArtist}:
 
     return (
         <>
-            <form encType="multipart/form-data"
-                  className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120"
-                  onSubmit={handleSubmit}>
-                <div className="dos">{artist ? ("Editing") : ("Adding")} an artist</div>
-                <hr></hr>
-                <div>
-                    <div className="flex flex-row">
-                        <div className="text-center w-full dos">Informations</div>
-                        <div className="text-center ml-auto w-36 dos">Avatar</div>
-                    </div>
-                    <div className="flex flex-row gap-2">
-                        <div className="flex flex-col gap-1 w-full">
-                            {error ? (<div className="dos red">{error}</div>) : ("")}
-                            <div className="flex relative flex-row">
-                                <b className="red absolute left-1 dos mr-1">*</b>
-                                <input defaultValue={artist?.name} name="name"
-                                       className="w-full h-6 border dos  text-center" type="text"
-                                       placeholder="Username"/>
+            <div className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120">
+                <form encType="multipart/form-data"
+                      onSubmit={handleSubmit}>
+                    <div className="dos">{artist ? ("Editing") : ("Adding")} an artist</div>
+                    <hr></hr>
+                    <div>
+                        <div className="flex flex-row">
+                            <div className="text-center w-full dos">Informations</div>
+                            <div className="text-center ml-auto w-36 dos">Avatar</div>
+                        </div>
+                        <div className="flex flex-row gap-2">
+                            <div className="flex flex-col gap-1 w-full">
+                                {error ? (<div className="dos red">{error}</div>) : ("")}
+                                <div className="flex relative flex-row">
+                                    <b className="red absolute left-1 dos mr-1">*</b>
+                                    <input defaultValue={artist?.name} name="name"
+                                           className="w-full h-6 border dos  text-center" type="text"
+                                           placeholder="Username"/>
+                                </div>
+                                <textarea defaultValue={artist?.description} name="description"
+                                          className="w-full h-full border dos  text-center"
+                                          placeholder="Description"/>
                             </div>
-                            <textarea defaultValue={artist?.description} name="description"
-                                      className="w-full h-full border dos  text-center"
-                                      placeholder="Description"/>
-                        </div>
-                        <div className="relative w-28 h-28 shrink-0 ml-auto border">
-                            <input onChange={handleImageChange} accept="image/*"
-                                   className="absolute h-full opacity-0 hover:cursor-pointer  w-full" type="file"
-                                   name="avatar"/>
-                            <img src={preview} className="pointer-events-none absolute border w-full h-full"
-                                 alt="bleeh"/>
-                        </div>
+                            <div className="relative w-28 h-28 shrink-0 ml-auto border">
+                                <input onChange={handleImageChange} accept="image/*"
+                                       className="absolute h-full opacity-0 hover:cursor-pointer  w-full" type="file"
+                                       name="avatar"/>
+                                <img src={preview} className="pointer-events-none absolute border w-full h-full"
+                                     alt="bleeh"/>
+                            </div>
 
-                    </div>
-                </div>
-                <div className="flex flex-row mx-auto gap-1">
-                    <div className="dos">Socials</div>
-                    <button type="button" onClick={addField}
-                            className="dos hover:cursor-pointer url">[+]
-                    </button>
-                </div>
-                <div className="flex flex-col gap-1">
-                    {socials.map((link, index) => (
-                        <div className="flex flex-row gap-1 w-full">
-                            <input type="text" className="dos w-full text-center border"
-                                   placeholder="Enter social link..."
-                                   value={link} onChange={(e) => handleInputChange(index, e.target.value)}/>
-                            <button type="button" onClick={() => removeField(index)}
-                                    className="dos hover:cursor-pointer url">[-]
-                            </button>
                         </div>
-                    ))}
-                </div>
-                <button type="submit" className="border url hover:cursor-pointer mt-3 dos">Submit!</button>
-            </form>
-            
-          <AdvancedFields asset={artist} setNavigating={setIsNavigating}/>
-            
+                    </div>
+                    <div className="flex flex-row mx-auto gap-1">
+                        <div className="dos">Socials</div>
+                        <button type="button" onClick={addField}
+                                className="dos hover:cursor-pointer ml-auto url">[+]
+                        </button>
+                    </div>
+                    <hr className="mb-2"/>
+                    <div className="flex flex-col gap-1">
+                        {socials.map((link, index) => (
+                            <div className="flex flex-row gap-1 w-full">
+                                <input type="text" className="dos w-full text-center border"
+                                       placeholder="Enter social link..."
+                                       value={link} onChange={(e) => handleInputChange(index, e.target.value)}/>
+                                <button type="button" onClick={() => removeField(index)}
+                                        className="dos hover:cursor-pointer url">[-]
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <hr className="mt-2" />
+                    <button type="submit" className="border url hover:cursor-pointer mt-3 w-full dos">Submit!</button>
+                </form>
+
+                <AdvancedFields asset={artist} setNavigating={setIsNavigating}/>
+            </div>
         </>
     )
 }

@@ -12,7 +12,7 @@ export default interface Asset {
     description?: string;
     thumbnail?: string;
     source?: string;
-    tags?: Tag[];
+    tags?: string[];
     type?: TypeEnum;
     thumbnailUrl?: string;
     fileUrl?: string;
