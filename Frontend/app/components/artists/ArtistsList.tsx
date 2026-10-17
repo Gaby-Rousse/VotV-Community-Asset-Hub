@@ -11,6 +11,7 @@ import {Page} from "~/models/enums/Page";
 import {useFilters} from "~/context/FiltersContext";
 import {SearchBy} from "~/models/interfaces/Filters";
 import {defaultInfo, type Info} from "~/models/interfaces/Info";
+import SimpleBar from "simplebar-react";
 
 interface ArtistFilters {
     ownerId: string;
@@ -106,7 +107,8 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
                     <div className="ml-2">Name</div>
                     <div className="ml-auto mr-4">Assets</div>
                 </div>
-                <div className="overflow-y-auto min-h-0 flex flex-col">
+                <SimpleBar className="min-h-0 flex-1">
+                    <div className="flex flex-col">
                     {artists.map((a) => (
                             <div onClick={() => setArtistId(a.id)} key={a.id}
                                  className="flex flex-row gap-1 hover:cursor-pointer border-b">
@@ -148,7 +150,8 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
                             </div>
                         )
                     )}
-                </div>
+                    </div>
+                </SimpleBar>
 
             </div>
         </>

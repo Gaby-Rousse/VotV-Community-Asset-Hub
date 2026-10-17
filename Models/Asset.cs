@@ -39,13 +39,13 @@ public class Asset : Timestamp
 
     public string PreviewUrl => string.IsNullOrEmpty(Preview)
         ? "NOT_AVAILABLE"
-        : $"/uploads/previews/{Preview}";
+        : $"https://cdn.votvbroadcast.com/VCAH/uploads/previews/{Preview}";
     
     public string ThumbnailUrl => string.IsNullOrEmpty(Thumbnail)
         ? "/uploads/thumbnails/picture.png"
         : Thumbnail.StartsWith("temp/")
-            ? $"/temp_uploads/thumbnails/{Thumbnail.Substring(4)}"
-            : $"/uploads/thumbnails/{Thumbnail}";
+            ? $"https://cdn.votvbroadcast.com/VCAH/temp_uploads/thumbnails/{Thumbnail.Substring(4)}"
+            : $"https://cdn.votvbroadcast.com/VCAH/uploads/thumbnails/{Thumbnail}";
     
     public string FileUrl => $"/uploads/files/{Filename}";
     

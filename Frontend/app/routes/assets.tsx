@@ -1,5 +1,4 @@
 import React, {Suspense, useEffect, useState} from "react";
-import {useAuth} from '~/context/AuthContext';
 import type Artist from "~/models/interfaces/Artist";
 import type Asset from "~/models/interfaces/Asset";
 import {useFilters} from "~/context/FiltersContext";
@@ -10,27 +9,39 @@ import ListAssets from "~/components/assets/AssetsList";
 import ListArtists from "~/components/artists/ArtistsList";
 import ArtistForm from "~/components/artists/ArtistForm";
 import {Page} from "~/models/enums/Page";
-import {filtersToParams} from "~/helpers/filterParams";
 import {apiCall} from "~/components/Functions";
 import {useLoading} from "~/context/LoadingContext";
 import TypeEnum from "~/models/enums/TypeEnum";
-import {fetchArtist} from "~/api/artists";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {Canvas} from "@react-three/fiber";
 import {OrbitControls, Stage} from "@react-three/drei";
 import {Model} from "~/components/assets/AssetDetailModal";
-
+import type Tag from "~/models/interfaces/Tag";
+import ListCollections from "~/components/tags/TagsList";
+import TagForm from "~/components/tags/TagForm";
+import {useSearchParams} from "react-router";
 export default function Assets() {
-    const [page, setPage] = useState<Page>(Page.Asset);
+    const [searchParams] = useSearchParams();
+    const [page, setPage] = useState<Page>(
+        searchParams.get("view") === "collections" ? Page.Collections : Page.Asset
+    );
     const [isNavigating, setIsNavigating] = useState(true);
-    const {filters} = useFilters();
+    const {filters, setFilters} = useFilters();
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+    const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
 
     const toggleNavigating = () => {
         setSelectedArtist(null);
         setSelectedAsset(null);
+        setSelectedTag(null)
         setIsNavigating(!isNavigating);
+    };
+
+    const selectAsset = (asset: Asset | null) => {
+        setSelectedAsset(asset);
+        if (asset)
+            setFilters(prev => ({...prev, item: asset.item, type: TypeEnum.All}));
     };
 
     const renderContent = () => {
@@ -40,18 +51,23 @@ export default function Assets() {
             return page === Page.Artists
                 ? <ArtistForm key={selectedArtist?.id ?? "new-artist"} setIsNavigating={setIsNavigating}
                               setSelectedArtist={setSelectedArtist} artist={selectedArtist}/>
-                : <AssetForm key={selectedAsset?.id ?? "new-asset"} item={filters.item} asset={selectedAsset}
-                             setIsNavigating={setIsNavigating}/>;
+                : page === Page.Asset || selectedAsset ? <AssetForm key={selectedAsset?.id ?? "new-asset"} item={filters.item!} asset={selectedAsset}
+                             setIsNavigating={setIsNavigating}/> : <TagForm tag={selectedTag} setIsNavigating={setIsNavigating}/>;
         if (page === Page.Artists)
             return <ListArtists setSelectedArtist={setSelectedArtist} setIsNavigating={setIsNavigating}
                                 setPage={setPage}/>;
         if (page === Page.Admin)
             return <AdminCorner/>
-        return <ListAssets setIsNavigating={setIsNavigating} setSelectedAsset={setSelectedAsset}/>;
+
+        if (page === Page.Collections)
+            return <ListCollections setSelectedTag={setSelectedTag}
+                                    setSelectedAsset={selectAsset}
+                                    setIsNavigating={setIsNavigating}/>;
+        return <ListAssets setIsNavigating={setIsNavigating} setSelectedAsset={selectAsset}/>;
     };
 
     return (
-        <div className="md:border-3 border-solid h-screen bg-black flex flex-col p-0.5">
+        <div className="md:border-3 border-solid h-dvh bg-black flex flex-col p-0.5">
             <Nav
                 isNavigating={isNavigating}
                 toggleNavigating={toggleNavigating}
@@ -63,6 +79,8 @@ export default function Assets() {
     );
 }
 
+
+
 const AdminCorner = () => {
     const [edits, setEdits] = useState<any[]>([]);
     const {setIsLoading} = useLoading();
@@ -73,6 +91,7 @@ const AdminCorner = () => {
         apiCall("/api/edits", null)
             .then(res => res.json())
             .then(response => {
+                console.log(response)
                 setEdits(response);
             })
             .catch(err => console.error('Failed to fetch edits:', err))
@@ -83,7 +102,7 @@ const AdminCorner = () => {
         <>
             <div className="dos">Admin corner</div>
             <div className="overflow-y-auto flex flex-col gap-2">
-                {edits?.map((edit, index) => (
+                {edits.length > 0 && edits?.map((edit, index) => (
                     edit.table == 0 ? (<AssetEdit asset={edit.target as Asset} changes={edit.changes} id={edit.id} setTrigger={setTrigger}/>) : (<ArtistEdit artist={edit.target as Artist} changes={edit.changes} id={edit.id} setTrigger={setTrigger}/>)
                 ))}
             </div>
@@ -167,7 +186,7 @@ const AssetEdit = ({asset, changes, id, setTrigger}: { asset: Asset, changes: an
                 <div>Tags:</div>
                 <div className="flex flex-row gap-1">
                     {asset.tags && asset.tags.length > 0
-                        ? asset.tags.map(t => <div key={t.name} className="border p-1">•{t.name}</div>)
+                        ? (asset.tags as unknown as Tag[]).map(t => <div key={t.id} className="border p-1">•{t.name}</div>)
                         : "None"}
                 </div>
                 {changes.tags && (
@@ -175,7 +194,7 @@ const AssetEdit = ({asset, changes, id, setTrigger}: { asset: Asset, changes: an
                         <div className="text-xl font-bold">====&gt;</div>
                         <div className="flex flex-row gap-1">
                             {changes.tags.length > 0
-                                ? changes.tags.map((t: string) => <div key={t} className="border p-1">•{t}</div>)
+                                ? changes.tags.map((t: string) => <div className="border p-1">•{t}</div>)
                                 : "None"}
                         </div>
                     </>
@@ -184,7 +203,7 @@ const AssetEdit = ({asset, changes, id, setTrigger}: { asset: Asset, changes: an
             {asset?.item == ItemEnum["3D Model"] && (<div className="dos">Preview:</div>)}
 
             <div className="flex dos flex-row items-center gap-3">
-                {asset?.item == ItemEnum["3D Model"] && asset?.previewUrl != "NOT_AVAILABLE" && (
+                {(asset?.item == ItemEnum["3D Model"] || asset?.item == ItemEnum["ATV Skin"]) && asset?.previewUrl != "NOT_AVAILABLE" && (
                     <div className="relative h-48 w-40">
                         <Canvas camera={{position: [0, 0, 50], fov: 50}}>
                             <ambientLight/>

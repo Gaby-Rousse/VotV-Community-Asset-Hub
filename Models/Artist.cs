@@ -12,10 +12,10 @@ public class Artist : Timestamp
     public string? Pfp { get; set; }
 
     public string PfpUrl => string.IsNullOrEmpty(Pfp)
-        ? "/uploads/avatars/defaultPicture.png"
+        ? "https://cdn.votvbroadcast.com/VCAH/uploads/avatars/defaultPicture.png"
         : Pfp.StartsWith("temp/")
-            ? $"/temp_uploads/avatars/{Pfp.Substring(4)}"
-            : $"/uploads/avatars/{Pfp}";
+            ? $"https://cdn.votvbroadcast.com/VCAH/temp_uploads/avatars/{Pfp.Substring(4)}"
+            : $"https://cdn.votvbroadcast.com/VCAH/uploads/avatars/{Pfp}";
     
     public virtual ICollection<Asset> Assets { get; set; } = new List<Asset>();
 

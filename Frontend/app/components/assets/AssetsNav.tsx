@@ -38,6 +38,10 @@ export function Nav({toggleNavigating, isNavigating, page, setPage}: {
                     <img className="size-6" alt="home" src="https://votvbroadcast.com/images/home.png"/>
                 </Link>
 
+                <div>
+                    <ComputerButton text="Collections" selected={page === Page.Collections} onClick={() => setPage(Page.Collections)}/>
+                </div>
+
                 {NAV_ITEMS.map(({label, item}) => (
                     <ComputerButton
                         key={label}
@@ -50,11 +54,11 @@ export function Nav({toggleNavigating, isNavigating, page, setPage}: {
                 <ComputerButton text="Radio" selected={page === Page.Radio} onClick={() => setPage(Page.Radio)}/>
                 <ComputerButton text="TV" selected={page === Page.TV} onClick={() => setPage(Page.TV)}/>
                 <div className="flex flex-row ml-auto shrink-0">
-                    {isAuthenticated && isAdmin && (
+                    {isAuthenticated && isAdmin && isNavigating && (
                     <div className="mr-1">
                         <ComputerButton text="Admin" selected={page === Page.Admin} onClick={() => setPage(Page.Admin)}/>
                     </div>)}
-                    {isAuthenticated && (
+                    {isAuthenticated && ((page != Page.Collections && page != Page.Admin) || !isNavigating) && (
                         <button
                             onClick={toggleNavigating}
                             className={`computerButton shrink-0 border-2 w-28 border-solid p-0.5 mt-1 mb-1 mr-1 pl-4 pr-4 hover:cursor-pointer ${isNavigating ? '' : 'selected'}`}>
@@ -65,7 +69,7 @@ export function Nav({toggleNavigating, isNavigating, page, setPage}: {
                 </div>
             </div>
 
-            {filters.item === ItemEnum.Picture && page === Page.Asset && (
+            {filters.item === ItemEnum.Picture && page === Page.Asset && isNavigating && (
                 <div className="px-1 pb-1 overflow-x-auto flex flex-row gap-1 flex-nowrap w-full">
                     {PICTURE_TYPES.map(({label, type}) => (
                         <button
@@ -89,7 +93,7 @@ export function ComputerButton({text, selected, onClick}: {
     return (
         <button
             onClick={onClick}
-            className={`w-28 shrink-0 computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 pl-4 pr-4 ${selected ? 'selected' : ''}`}>
+            className={`min-w-28 shrink-0 computerButton hover:cursor-pointer border-2 border-solid p-0.5 mt-1 mb-1 pl-4 pr-4 ${selected ? 'selected' : ''}`}>
             {text}
         </button>
     );

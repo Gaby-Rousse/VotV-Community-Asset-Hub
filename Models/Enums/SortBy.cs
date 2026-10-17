@@ -5,4 +5,5 @@ public enum SortBy
     Alphabetical,
     Date,
     Size,
+    Count
 }

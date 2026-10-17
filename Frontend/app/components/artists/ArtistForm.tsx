@@ -94,7 +94,7 @@ export default function ArtistForm({setIsNavigating, artist, setSelectedArtist}:
 
     return (
         <>
-            <div className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120">
+            <div className="flex px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-125">
                 <form encType="multipart/form-data"
                       onSubmit={handleSubmit}>
                     <div className="dos">{artist ? ("Editing") : ("Adding")} an artist</div>

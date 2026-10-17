@@ -49,7 +49,7 @@ export default function register() {
     return (
         <>
             <form onSubmit={handleSubmit}
-                  className="bg-black flex h-screen w-screen">
+                  className="bg-black flex h-dvh w-screen">
                 <div className="ml-1 mt-auto flex flex-col">
                     <Line visibleCount={visibleCount} requiredCount={1}>
                         <div className="flex flex-row gap-1">

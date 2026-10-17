@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 @import "tailwindcss";
+@import "simplebar-react/dist/simplebar.min.css";
 
 * {
     box-sizing: border-box;
@@ -23,6 +24,7 @@ html {
     background-image: url("https://votvbroadcast.com/images/bg.png");
     background-attachment: fixed;
     background-size: cover;
+    overflow: hidden;
 }
 
 nav {
@@ -146,4 +148,28 @@ button:active {
 button:hover
 {
     cursor:pointer;
+}
+/* but but but why???? I DON'T KNOW EITHER. THEY WOULDN'T COOPERATE */
+.fucker {
+    margin-right: 10px;
+}
+
+.simplebar-content {
+    padding-right: 10px !important;
+}
+
+.simplebar-track.simplebar-vertical {
+    width: 10px;
+}
+
+.simplebar-scrollbar::before {
+    border-radius: 0;
+    background: #ffffff;
+    opacity: 1 !important;
+    transition: none !important;
+    inset: 0;
+}
+
+.simplebar-content:hover {
+    cursor: pointer;
 }

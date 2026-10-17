@@ -9,6 +9,7 @@ import {defaultFilters, type Filters, SearchBy, SortBy} from "~/models/interface
 import {defaultInfo, type Info} from "~/models/interfaces/Info";
 import {useFilters} from "~/context/FiltersContext";
 import {filtersToParams, paramsToFilters} from "~/helpers/filterParams";
+import SimpleBar from "simplebar-react";
 
 type TagSuggestion = { name: string, count: number };
 
@@ -169,8 +170,8 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                     Owned
                 </button>
             </div>
-            <div
-                className="flex justify-center items-center overflow-y-auto mt-3 mb-8.5 sm:mt-1 px-1 gap-3 flex-wrap flex-row ">
+            <SimpleBar className="flex-1 min-h-0">
+                <div className="flex justify-center items-center mt-3 mb-8.5 sm:mt-1 px-1 gap-3 flex-wrap flex-row ">
                 {
                     display == 0 ? (assets.map((a) => (
                         <div onClick={() => updateAssetId(a.id)} className="flex hover:cursor-pointer flex-col"
@@ -213,7 +214,8 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                         </>
                     )
                 }
-            </div>
+                </div>
+            </SimpleBar>
 
             <div
                 className={`dos border absolute z-10 transition-all bg-black left-0 ${menuOpened ? ("h-60") : ("h-8")} bottom-0 flex flex-col w-full`}>

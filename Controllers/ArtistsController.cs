@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
+using VotVAssets.Services;
 
 namespace VotVAssets.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class ArtistsController(IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager) : ControllerBase
+public class ArtistsController(IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager, FileService fileService) : ControllerBase
 {
 
     [Authorize]
@@ -127,7 +128,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
             if (artist.Socials != existingArtist.Socials)
                 changes["socials"] = artist.Socials;
             
-            string newAvatar = await HandlePfp(Request.Form.Files["avatar"], true);
+            string newAvatar = await fileService.HandlePfp(Request.Form.Files["avatar"], true);
             if (newAvatar != null)
             {
                 changes["pfp"] = newAvatar;
@@ -151,7 +152,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
                     if (pendingChanges.ContainsKey("pfp"))
                     {
                         pendingChanges.TryGetValue("pfp", out JsonElement oldPfp);
-                        DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "avatars", oldPfp.GetString() ?? ""));
+                        fileService.DeleteFile(Path.Combine("temp_uploads", "avatars", oldPfp.GetString() ?? ""));
                     }
                 }
                 else if (pendingChanges.ContainsKey("pfp"))
@@ -183,12 +184,12 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
 
         artist.OwnerId = existingArtist.OwnerId;
 
-        var pfp = await HandlePfp(Request.Form.Files["avatar"]);
+        var pfp = await fileService.HandlePfp(Request.Form.Files["avatar"]);
         if (pfp != null)
         {
             artist.Pfp = pfp;
-            DeleteFile(
-                Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "avatars", existingArtist.Pfp ?? ""));
+            fileService.DeleteFile(
+                Path.Combine("uploads", "avatars", existingArtist.Pfp ?? ""));
         }
         else
         {
@@ -220,7 +221,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
 
         artist.OwnerId = userManager.GetUserId(User);
 
-        var pfp = await HandlePfp(Request.Form.Files["avatar"]);
+        var pfp = await fileService.HandlePfp(Request.Form.Files["avatar"]);
         if (pfp != null)
             artist.Pfp = pfp;
 
@@ -250,7 +251,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
             var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
     
             if (changes.TryGetValue("pfp", out var pfp))
-                DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "avatars", pfp.GetString()!));
+                fileService.DeleteFile(Path.Combine("temp_uploads", "avatars", pfp.GetString()!));
         }
 
         context.Edits.RemoveRange(edits);
@@ -265,8 +266,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
 
         await context.SaveChangesAsync();
 
-        DeleteFile(
-            Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "avatars", existingArtist.Pfp ?? ""));
+        fileService.DeleteFile(Path.Combine("uploads", "avatars", existingArtist.Pfp ?? ""));
 
         return NoContent();
     }
@@ -276,27 +276,5 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
         return context.Artists.Any(e => e.Id == id);
     }
 
-    private async Task<string?> HandlePfp(IFormFile? avatar, bool temp = false)
-    {
-        var rootPath = environment.ContentRootPath;
-        var uploadFolder = Path.Combine(rootPath, "wwwroot", temp ? "temp_uploads" : "uploads", "avatars");
 
-
-        if (avatar == null) return null;
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(avatar.FileName)}";
-        var fullPath = Path.Combine(uploadFolder, fileName);
-
-        await using (var stream = new FileStream(fullPath, FileMode.Create))
-        {
-            await avatar.CopyToAsync(stream);
-        }
-
-        return fileName;
-    }
-
-    private void DeleteFile(string filepath)
-    {
-        if (System.IO.File.Exists(filepath))
-            System.IO.File.Delete(filepath);
-    }
 }

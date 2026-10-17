@@ -4,4 +4,5 @@ export enum Page {
     TV,
     Artists,
     Admin,
+    Collections,
 }

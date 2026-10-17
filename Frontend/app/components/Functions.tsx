@@ -78,34 +78,30 @@ export function GenerateSocial({url}: { url: string }) {
         </a>
     );
 }
-export async function downloadFile(url: string, filename: string) {
-    try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-
-        const forcedBlob = new Blob([blob], {type: 'application/octet-stream'});
-        const blobUrl = window.URL.createObjectURL(forcedBlob);
-
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        link.style.display = 'none';
-
-        document.body.appendChild(link);
-        link.click();
-
-        setTimeout(() => {
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-        }, 100);
-    } catch (error) {
-        console.error('Download failed:', error);
-    }
+export function downloadFile(assetId: number) {
+    window.location.href = `/api/assets/${assetId}/download`;
 }
 
 export function selectAspectRatio({item, type} : {item : number, type : number | undefined}) : string {
     if(item == ItemEnum.Poster)
         return "h-60 aspect-2/3"
+    if(item == ItemEnum.Picture)
+    {
+        if(type == TypeEnum.Horizontal)
+            return "h-50 aspect-5/4"
+        if(type == TypeEnum.Square)
+            return "h-50 aspect-1/1"
+        if(type == TypeEnum.Vertical)
+            return "h-50 aspect-5/8"
+        if(type == TypeEnum.Table)
+            return "h-50 aspect-3/4"
+    }
+    return "h-50 aspect-1/1"
+}
+
+export function selectAspectRatioSameHeight({item, type} : {item : number, type : number | undefined}) : string {
+    if(item == ItemEnum.Poster)
+        return "h-50 aspect-2/3"
     if(item == ItemEnum.Picture)
     {
         if(type == TypeEnum.Horizontal)

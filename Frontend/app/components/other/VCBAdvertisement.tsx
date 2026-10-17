@@ -1,4 +1,12 @@
 export default function VCBAdvertisement({isNavigating}: { isNavigating: boolean }) {
+
+    return (
+        <div className="dos text-xl m-auto text-center">
+            Radio and TV assets aren't available in VCAH yet.<br/>
+            Please upload them at <a className="url break-all" href="https://votvbroadcast.com/upload" target="_blank">votvbroadcast.com/upload</a>
+        </div>
+    )
+
     return (
         <>
             <div className="flex my-auto flex-col">

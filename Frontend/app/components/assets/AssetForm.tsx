@@ -5,6 +5,8 @@ import {apiCall} from "~/components/Functions";
 import ItemEnum from "~/models/enums/ItemEnum";
 import ArtistDropdown from "~/components/artists/ArtistDropdown";
 import AdvancedFields from "~/components/other/AdvancedFields";
+import {useFloating, autoUpdate, offset, flip, size, hide, FloatingPortal} from "@floating-ui/react";
+import SimpleBar from "simplebar-react";
 
 export default function AssetForm({item, asset, setIsNavigating}: {
     item: number,
@@ -23,12 +25,29 @@ export default function AssetForm({item, asset, setIsNavigating}: {
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
 
+    const {refs, floatingStyles, middlewareData} = useFloating({
+        placement: "bottom-start",
+        whileElementsMounted: autoUpdate,
+        middleware: [
+            offset(2),
+            flip(),
+            size({
+                apply({rects, elements}) {
+                    elements.floating.style.width = `${rects.reference.width}px`;
+                }
+            }),
+            hide(),
+        ],
+    });
+
+    const showSuggestions = activeSuggestionIndex !== null && suggestions.length > 0;
+
     useEffect(() => {
         setTags(asset?.tags ?? []);
     }, [asset]);
 
     const addField = () => {
-        if (tags.length < 10)
+        if (tags.length < 100)
             setTags([...tags, ""]);
     };
 
@@ -142,7 +161,35 @@ export default function AssetForm({item, asset, setIsNavigating}: {
 
     return (
         <>
-            <div className="flex overflow-auto px-2 flex-col mx-auto mt-1 shrink m-w-0 w-full max-w-120">
+            {showSuggestions && (
+                <FloatingPortal>
+                    <div ref={refs.setFloating}
+                         onMouseDown={(e) => e.preventDefault()}
+                         className="z-50"
+                         style={{
+                             ...floatingStyles,
+                             visibility: middlewareData.hide?.referenceHidden ? "hidden" : "visible",
+                         }}>
+                        <SimpleBar autoHide={false} style={{maxHeight: 144}} className="border border-white bg-black">
+                            {suggestions.map(s => (
+                                <div
+                                    key={s}
+                                    onMouseDown={() => {
+                                        const newTags = [...tags];
+                                        newTags[activeSuggestionIndex!] = s;
+                                        setTags(newTags);
+                                        setSuggestions([]);
+                                    }}
+                                    className="dos px-2 py-0.5 hover:cursor-pointer url">
+                                    {s}
+                                </div>
+                            ))}
+                        </SimpleBar>
+                    </div>
+                </FloatingPortal>
+            )}
+            <SimpleBar className="flex-1 min-h-0 w-full max-w-125 mx-auto my-1">
+                <div className="flex flex-col px-2">
                 <form encType="multipart/form-data"
 
                       onSubmit={handleSubmit}>
@@ -203,7 +250,7 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                                        className="w-full h-6 border dos text-center" type="file"
                                 /></>)}
                         </div>
-                        {item == 5 ? (<>
+                        {item == ItemEnum["3D Model"] ? (<>
                             <div className="dos">3D Preview:</div>
                             <hr className="mb-1"/>
                             <div className="flex flex-row">
@@ -211,8 +258,17 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                                        className="w-full h-6 border dos text-center" type="file"
                                 />
                             </div>
-                            <div className="dos">If no preview is provided, the thumbnail will be used instead of the 3D
-                                viewer.
+                            <div className="dos">If no preview is provided, the server will attempt to generate a .glb file. <span className="red">Faithful result not guaranteed.</span>
+                            </div>
+                        </>) : item == ItemEnum["ATV Skin"] ? (<>
+                            <div className="dos">3D ATV Preview:</div>
+                            <hr className="mb-1"/>
+                            <div className="flex flex-row">
+                                <input accept="image/*" name="preview"
+                                       className="w-full h-6 border dos text-center" type="file"
+                                />
+                            </div>
+                            <div className="dos">Select an ATV skin to showcase <span className="red">(Only useful if providing an archive!)</span>
                             </div>
                         </>) : ("")}
                     </div>
@@ -221,42 +277,27 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                         <button className="url" type="button" onClick={() => addField()}>[+]</button>
                     </div>
                     <hr className="my-2"/>
-                    <div className="flex flex-col gap-1">
+                    <SimpleBar className="max-h-30">
+                        <div className="flex flex-col gap-1">
                         {tags.map((tag, index) => (
-                            <div className="flex flex-col gap-0 w-full" key={index}>
-                                <div className="flex flex-row gap-1 w-full">
-                                    <input
-                                        type="text"
-                                        className="dos w-full text-center border"
-                                        placeholder={`Tag [${index + 1}]`}
-                                        value={tag}
-                                        onChange={(e) => handleInputChange(index, e.target.value)}
-                                        onBlur={() => setTimeout(() => setSuggestions([]), 150)}
-                                    />
-                                    <button type="button" onClick={() => removeField(index)}
-                                            className="dos hover:cursor-pointer url">[-]
-                                    </button>
-                                </div>
-                                {activeSuggestionIndex === index && suggestions.length > 0 && (
-                                    <div className="border border-white bg-black z-20">
-                                        {suggestions.map(s => (
-                                            <div
-                                                key={s}
-                                                onMouseDown={() => {
-                                                    const newTags = [...tags];
-                                                    newTags[index] = s;
-                                                    setTags(newTags);
-                                                    setSuggestions([]);
-                                                }}
-                                                className="dos px-2 py-0.5 hover:cursor-pointer url">
-                                                {s}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                            <div className="flex flex-row gap-1 w-full" key={index}>
+                                <input
+                                    type="text"
+                                    autoFocus={index === tags.length - 1 && tag === ""}
+                                    className="dos w-full text-center border"
+                                    placeholder={`Tag [${index + 1}]`}
+                                    value={tag}
+                                    onFocus={(e) => refs.setReference(e.currentTarget)}
+                                    onChange={(e) => handleInputChange(index, e.target.value)}
+                                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                                />
+                                <button type="button" onClick={() => removeField(index)}
+                                        className="dos hover:cursor-pointer url">[-]
+                                </button>
                             </div>
                         ))}
-                    </div>
+                        </div>
+                    </SimpleBar>
                     <hr className="my-2"/>
                     <div className="flex flex-row gap-1">
                         <button onClick={() => {
@@ -268,7 +309,8 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                     </div>
                 </form>
                 <AdvancedFields asset={asset} setNavigating={setIsNavigating}/>
-            </div>
+                </div>
+            </SimpleBar>
         </>
     );
 }

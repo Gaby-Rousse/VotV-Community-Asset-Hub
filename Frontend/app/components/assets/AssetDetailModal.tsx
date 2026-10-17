@@ -1,14 +1,12 @@
 import React, {Suspense, useEffect, useState} from "react";
 import type Asset from "~/models/interfaces/Asset";
-import type Artist from "~/models/interfaces/Artist";
-import { useAuth } from "~/context/AuthContext";
-import { useLoading } from "~/context/LoadingContext";
+import {useAuth} from "~/context/AuthContext";
+import {useLoading} from "~/context/LoadingContext";
 import {OrbitControls, Stage, useGLTF} from "@react-three/drei";
 import {apiCall, downloadFile, GenerateSocial} from "../Functions";
-import { Canvas } from "@react-three/fiber";
+import {Canvas} from "@react-three/fiber";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {fetchAsset} from "~/api/assets";
-import {fetchArtist} from "~/api/artists";
 
 export default function AssetDetailModal({id, setId, setIsNavigating, setSelectedAsset, setTrigger}: {
     id: number,
@@ -24,6 +22,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
     const [lighting, setLighting] = useState(1.0);
     const [color, setColor] = useState("#000000")
     const [copied, setCopied] = useState(false)
+    const [previewOk, setPreviewOk] = useState<null|boolean>(null)
 
     useEffect(() => {
         setIsLoading(true);
@@ -33,6 +32,19 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
             })
             .catch(err => console.error(err)).finally(() => setIsLoading(false));
     }, [id]);
+
+    useEffect(() => {
+        if (!asset?.previewUrl || asset.previewUrl === "NOT_AVAILABLE") {
+            setPreviewOk(false);
+            return;
+        }
+        let cancelled = false;
+        setPreviewOk(null);
+        fetch(asset.previewUrl, {method: "HEAD"})
+            .then(r => !cancelled && setPreviewOk(r.ok))
+            .catch(() => !cancelled && setPreviewOk(false));
+        return () => { cancelled = true; };
+    }, [asset?.previewUrl]);
 
     async function deleteAsset(id: number) {
         let response = await apiCall(`/api/Assets/${id}`, new FormData(), "DELETE");
@@ -56,21 +68,25 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
         setCopied(true);
     }
 
-
+    function shareLink() {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has("assetId") && asset)
+            url.searchParams.set("assetId", String(asset.id));
+        copyToClipBoard(url.toString());
+    }
 
     return (
         <>
-            <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 pb-8 bg-black/50 z-10 ">
+            <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 pb-8 bg-black/50 z-20 ">
 
-                <div
-                    className="flex flex-col mx-auto my-auto w-full h-full 2xl:w-2/3 2xl:h-4/5 bg-black border-2 xl:overflow-hidden overflow-y-auto">
-                    <div className="flex shrink-0 w-full gap-2 h-12 border-b-2 flex-row">
+                <div className="flex flex-col mx-auto my-auto w-full h-full 2xl:w-2/3 2xl:h-4/5 bg-black border-2 xl:overflow-hidden">
+                    <div className=" sticky top-0 z-10 bg-black flex shrink-0 w-full gap-2 h-12 border-b-2 flex-row">
                         <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{asset?.name}</div>
                         <div>
                             
                         </div>
                         <div className="flex flex-row ml-auto">
-                            <button onClick={() => copyToClipBoard(window.location.href)}
+                            <button onClick={() => shareLink()}
                                     className="dos shrink-0 border hover:cursor-pointer size-8  my-auto m-1"
                                     type="button">
                                 <img src={copied ? "https://votvbroadcast.com/images/check.png" : "https://votvbroadcast.com/images/share.png" }/>
@@ -85,8 +101,10 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                     </div>
                     <div className="flex xl:flex-row flex-col w-full xl:h-full h-250 overflow-visible xl:overflow-hidden">
                         <div className="2xl:w-3/4 xl:max-w-3/4 w-full xl:border-r flex flex-col h-full min-h-0">
-                            {asset?.item == ItemEnum["3D Model"] && asset?.previewUrl != "NOT_AVAILABLE" ? (
-                                    <div style={{ backgroundColor: color }} className="xl:h-[40vh] bg-[] relative h-[30vh]">
+                            {previewOk === null ?  <div className="xl:h-[40vh] h-[30vh] w-full flex items-center justify-center">
+                                <div className="dos flex flex-row justify-center"><img alt="" className="size-8" src="https://votvbroadcast.com/images/hourglass.gif"/>Loading preview...</div>
+                            </div> :  (asset?.item == ItemEnum["3D Model"] || asset?.item == ItemEnum["ATV Skin"]) && asset?.previewUrl != "NOT_AVAILABLE" && previewOk ? (
+                                    <div style={{ backgroundColor: color }} className="xl:h-[40vh] relative h-[30vh]">
                                         <Canvas camera={{position: [0, 0, 50], fov: 50}}>
                                             <ambientLight intensity={lighting}/>
                                             <directionalLight position={[5, 5, 5]}/>
@@ -118,6 +136,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                         <img className="xl:h-[40vh] h-[30vh]  w-full object-contain m-auto" src={asset?.thumbnailUrl}/>
                                     </div>
                                 )}
+                           
 
 
                             <div className="flex p-1 flex-1 border-b xl:border-b-0 xl:border-r 2xl:border-r-0 flex-col border-t min-h-0">
@@ -168,7 +187,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
 
 
                     </div>
-                    <div className="flex border-t shrink-0 mt-auto w-full gap-2 py-2 flex-row">
+                    <div className="flex border-t shrink-0 mt-auto w-full gap-2 py-2 flex-row sticky bottom-0 bg-black z-10">
                         <div className="dos ml-1  hidden items-center flex-row">
                             <div className="dos">Rating:</div>
                             <div className="dos text-2xl"></div>
@@ -215,7 +234,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                     </button>
                                 </>
                             ) : ("")}
-                            <button onClick={() => downloadFile(asset?.fileUrl ?? "", asset?.filename ?? "")}
+                            <button onClick={() => downloadFile(asset?.id!)}
                                     className="dos shrink-0 border hover:cursor-pointer my-auto">
                                 <div className="flex flex-row gap-1 py-0.5 pl-2 pr-4">
                                     <img className="size-7" src="https://votvbroadcast.com/images/download.png"/>

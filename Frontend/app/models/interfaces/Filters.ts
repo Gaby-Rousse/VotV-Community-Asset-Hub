@@ -3,8 +3,8 @@ import  ItemEnum from "~/models/enums/ItemEnum";
 
 
 export interface Filters {
-    item: ItemEnum;
-    type: TypeEnum;
+    item: ItemEnum | null;
+    type?: TypeEnum;
     search: string | null;
     searchBy: SearchBy;
     tags: string[];
@@ -23,10 +23,23 @@ export enum SortBy {
     "Alphabetical",
     "Date",
     "Size",
+    "Count",
 }
 
 export const defaultFilters: Filters = {
     item: ItemEnum["3D Model"],
+    type: TypeEnum.All,
+    search: "",
+    searchBy: SearchBy.Name,
+    tags: [],
+    sort: SortBy.Alphabetical,
+    reverse: false,
+    page: 1,
+    ownerId: "",
+}
+
+export const defaultTagFilters: Filters = {
+    item: null,
     type: TypeEnum.All,
     search: "",
     searchBy: SearchBy.Name,
