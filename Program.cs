@@ -9,7 +9,6 @@ using System.Text.Json.Serialization;
 using Amazon.Runtime;
 using Amazon.S3;
 
-
 //https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-10.0
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
@@ -18,16 +17,20 @@ builder.WebHost.ConfigureKestrel(o =>
 {
     o.Limits.MaxRequestBodySize = 104_857_600;
 });
+builder.Services.Configure<FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 104_857_600;
+});
 
 builder.Services.AddSingleton<IAmazonS3>(sp =>
 {
-    var accessKey = "5ed48d2af137bce9530a28e6579bcd69";
-    var secretKey = "f9f9714caa37712c5c1673cc17d93cc2af71b5aba299d8afecaeb167d30c2847";
+    var accessKey = builder.Configuration["S3:access-key"];
+    var secretKey = builder.Configuration["S3:secret-key"];
     var credentials = new BasicAWSCredentials(accessKey, secretKey);
 
     return new AmazonS3Client(credentials, new AmazonS3Config
     {
-        ServiceURL = $"https://1cd1b9eb03c0e49554f01fad54ca70ca.r2.cloudflarestorage.com",
+        ServiceURL = builder.Configuration["S3:service-url"],
     });
 });
 
@@ -69,8 +72,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 });
 
 builder.Services.AddDbContext<ApplicationDbContext>(opt =>
-    opt.UseSqlServer(
-        "Server=localhost;Database=VotVAssets;User Id=sa;Password=cW50MNIvJkwfbWwmCEIWIZumjIX7Q2Az5rdgGT3CqJelzIxiKU;TrustServerCertificate=True;"));
+    opt.UseSqlServer(builder.Configuration["ConnectionString"]));
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -133,7 +135,6 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 app.MapControllers();
 
