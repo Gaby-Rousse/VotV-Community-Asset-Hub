@@ -5,6 +5,8 @@ using System.IO.Compression;
 using Microsoft.AspNetCore.Http.Features;
 using VotVAssets.Models.Enums;
 using VotVAssets.Services;
+using Microsoft.AspNetCore.Authorization;
+using VotVAssets.Extensions;
 
 namespace VotVAssets.Controllers;
 
@@ -87,7 +89,7 @@ public async Task<ActionResult> GetTags(
 
 // GET: api/Tags/5
     [HttpGet("{id}")]
-    public async Task<ActionResult> GetTag(int id, bool includeAssets = false)
+    public async Task<ActionResult> GetTag(int id)
     {
         var tag = await context.Tags
             .Where(t => t.Id == id)
@@ -97,20 +99,7 @@ public async Task<ActionResult> GetTags(
                 name = t.Name,
                 description = t.Description,
                 thumbnailUrl = t.ThumbnailUrl,
-                count = t.Assets.Count,
-                assets = includeAssets
-                    ? t.Assets.Select(a => new
-                    {
-                        id = a.Id,
-                        name = a.Name,
-                        artistName = a.Artist.Name,
-                        size = a.Size,
-                        createdAt = a.CreatedAt,
-                        thumbnailUrl = a.ThumbnailUrl,
-                        item = a.Item,
-                        type = a.Type
-                    }).ToList()
-                    : null
+                count = t.Assets.Count
             })
             .FirstOrDefaultAsync();
 
@@ -122,6 +111,8 @@ public async Task<ActionResult> GetTags(
     public async Task<IActionResult> DownloadCollection(int id, [FromQuery] ContentRating[]? ratings = null)
     {
         ratings ??= [ContentRating.General];
+        if (!User.CanSeeExplicit())
+            ratings = ratings.Where(r => r != ContentRating.Explicit).ToArray();
 
         var rootPath = environment.ContentRootPath;
         var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "files");
@@ -161,6 +152,7 @@ public async Task<ActionResult> GetTags(
     }
 
 // PUT: api/Tags/5
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<ActionResult> PutTag(int id, [FromForm] Tag tag)
     {
@@ -188,7 +180,7 @@ public async Task<ActionResult> GetTags(
         if (thumbnail != null)
         {
             if (!string.IsNullOrEmpty(existingTag.Thumbnail))
-                fileService.DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "thumbnails", existingTag.Thumbnail));
+                await fileService.DeleteFileAsync(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "thumbnails", existingTag.Thumbnail));
             tag.Thumbnail = thumbnail;
         }
         else

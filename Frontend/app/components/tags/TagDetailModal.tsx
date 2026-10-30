@@ -118,7 +118,7 @@ export default function TagDetailModal({id, setId, assetId, setAssetId, setIsNav
                                 <button className="px-2" onClick={() => setPage(p => Math.min(totalPages, p + 1))}>&gt;</button>
                             </div>
 
-                            <div className="my-auto mr-1"><RatingCheckboxInput ratingsCount={ratingsCount} setReaderValue={setRatings}/></div>
+                            <div className="my-auto mr-1"><RatingCheckboxInput oldValue={ratings} setReaderValue={setRatings} ratingsCount={ratingsCount}/></div>
 
                                 <button onClick={() => copyToClipBoard(window.location.href)}
                                         className="dos shrink-0 border hover:cursor-pointer size-8 my-auto m-1"

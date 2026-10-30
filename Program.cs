@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
+using VotVAssets.Models.Enums;
 using VotVAssets.Services;
 using System.Text.Json.Serialization;
 using Amazon.Runtime;
@@ -35,10 +36,6 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
 });
 
 
-builder.Services.Configure<FormOptions>(o =>
-{
-    o.MultipartBodyLengthLimit = 104_857_600;
-});
 builder.Services.AddAuthorization();
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     {
@@ -93,6 +90,7 @@ builder.Services.AddSwaggerGen();
 
 //Registers custom functions
 builder.Services.AddScoped<FileService>();
+builder.Services.AddSingleton<AssetUrlService>();
 
 var app = builder.Build();
 
@@ -121,6 +119,17 @@ var provider = new FileExtensionContentTypeProvider();
 provider.Mappings[".glb"] = "model/gltf-binary";
 provider.Mappings[".gltf"] = "model/gltf+json";
 
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path;
+    if (path.StartsWithSegments("/uploads") || path.StartsWithSegments("/temp_uploads"))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    await next();
+});
+
 app.UseStaticFiles(new StaticFileOptions
 {
     ContentTypeProvider = provider,
@@ -129,6 +138,7 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = ctx =>
     {
         ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000"; 
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     }
     
 });
@@ -165,6 +175,21 @@ if (args.Contains("--generate-previews-ATV"))
     await GeneratePreviewsForATV.RunAsync(app.Services);
     return;
 }
+
+if (args.Contains("--move-explicit"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var files = scope.ServiceProvider.GetRequiredService<FileService>();
+
+    var explicitAssets = await db.Assets.Where(a => a.Rating == ContentRating.Explicit).ToListAsync();
+    foreach (var asset in explicitAssets)
+        await files.SyncBucket(asset, false);
+
+    Console.WriteLine($"Moved {explicitAssets.Count} assets.");
+    return;
+}
+
 
 
 app.Run();

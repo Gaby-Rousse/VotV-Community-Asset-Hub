@@ -14,7 +14,7 @@ export default function dev()
             <div>Radio</div>
             <RatingRadioInput setReaderValue={setValue}/>
             <div>Checkbox</div>
-            <RatingCheckboxInput setReaderValue={setValue}/>
+            <RatingCheckboxInput setReaderValue={() => {}}/>
         </div>
     </>)
 }

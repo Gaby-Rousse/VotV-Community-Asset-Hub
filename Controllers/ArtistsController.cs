@@ -115,6 +115,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
 
         //https://stackoverflow.com/a/56865203 goofy
         var existingArtist = await context.Artists.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id);
+        if (existingArtist == null) return NotFound();
         if (!User.IsInRole("Admin") && existingArtist.OwnerId != userManager.GetUserId(User))
         {
             var changes = new Dictionary<string, object?>();
@@ -152,7 +153,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
                     if (pendingChanges.ContainsKey("pfp"))
                     {
                         pendingChanges.TryGetValue("pfp", out JsonElement oldPfp);
-                        fileService.DeleteFile(Path.Combine("temp_uploads", "avatars", oldPfp.GetString() ?? ""));
+                        await fileService.DeleteFileAsync(Path.Combine("temp_uploads", "avatars", oldPfp.GetString() ?? ""));
                     }
                 }
                 else if (pendingChanges.ContainsKey("pfp"))
@@ -188,7 +189,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
         if (pfp != null)
         {
             artist.Pfp = pfp;
-            fileService.DeleteFile(
+            await fileService.DeleteFileAsync(
                 Path.Combine("uploads", "avatars", existingArtist.Pfp ?? ""));
         }
         else
@@ -251,7 +252,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
             var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
     
             if (changes.TryGetValue("pfp", out var pfp))
-                fileService.DeleteFile(Path.Combine("temp_uploads", "avatars", pfp.GetString()!));
+                await fileService.DeleteFileAsync(Path.Combine("temp_uploads", "avatars", pfp.GetString()!));
         }
 
         context.Edits.RemoveRange(edits);
@@ -266,7 +267,7 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
 
         await context.SaveChangesAsync();
 
-        fileService.DeleteFile(Path.Combine("uploads", "avatars", existingArtist.Pfp ?? ""));
+        await fileService.DeleteFileAsync(Path.Combine("uploads", "avatars", existingArtist.Pfp ?? ""));
 
         return NoContent();
     }

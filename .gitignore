@@ -13,6 +13,9 @@
 .env*
 secrets.json
 
+#sixlabors license
+sixlabors.lic
+
 # User-specific files
 *.suo
 *.user

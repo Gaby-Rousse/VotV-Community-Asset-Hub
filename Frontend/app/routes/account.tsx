@@ -8,7 +8,7 @@ export default function account() {
     const [visibleCount, setVisibleCount] = useState(0);
     //https://reactrouter.com/start/declarative/navigating#usenavigate
     const navigate = useNavigate();
-    const {isAuthenticated, username, refreshAuth} = useAuth();
+    const {isAuthenticated, username, refreshAuth, explicitConsent} = useAuth();
     const numberOfLines: number = 5;
 
     useEffect(() => {
@@ -40,13 +40,26 @@ export default function account() {
             } else {
             }
         }
+
+        if (option == 2) {
+            let response = await apiCall("/api/Accounts/explicit-consent", new FormData(), "DELETE");
+            if (response.ok) {
+                setMessage("Consent revoked successfully.");
+                navigate("/account");
+                refreshAuth();
+            } else {
+            }
+        }
     }
+
+    const [message, setMessage] = useState("");
 
     return (
         <>
             <form onSubmit={handleSubmit}
                   className="bg-black flex h-dvh w-screen">
                 <div className="ml-1 mt-auto flex flex-col">
+                    <div className="dos">{message}</div>
                     <Line visibleCount={visibleCount} requiredCount={1}>
                         <div className="flex flex-row gap-1">
                             <div className="dos">Hello {username}.
@@ -64,6 +77,12 @@ export default function account() {
                             <div className="dos">1) Log off</div>
                         </div>
                     </Line>
+                    {explicitConsent &&  <Line visibleCount={visibleCount} requiredCount={3}>
+                        <div className="flex flex-row gap-1">
+                            <div className="dos">2) Revoke explicit content consent</div>
+                        </div>
+                    </Line>}
+
                     <Line visibleCount={visibleCount} requiredCount={4}>
                         <div className="flex flex-row gap-1">
                             <div className="dos">Please select an option:</div>

@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {Link, useNavigate} from "react-router";
+import {Link, useNavigate, useSearchParams} from "react-router";
 import {useAuth} from "~/context/AuthContext";
 import {apiCall} from "~/components/Functions";
 
@@ -11,6 +11,9 @@ export default function login() {
     const navigate = useNavigate();
     const numberOfLines: number = 5;
     const {isAuthenticated, refreshAuth} = useAuth();
+    const [searchParams] = useSearchParams()
+
+    console.log(searchParams)
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -39,6 +42,9 @@ export default function login() {
 
         let response = await apiCall("/api/Accounts/login", formData);
         if (response.ok) {
+            if(searchParams.has("assetId"))
+                navigate(`/assets?${searchParams}`);
+            else
             navigate("/");
             refreshAuth();
         } else {

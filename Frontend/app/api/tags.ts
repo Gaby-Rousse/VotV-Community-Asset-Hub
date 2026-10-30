@@ -10,12 +10,6 @@ export async function fetchTag(id: number): Promise<Tag> {
     return data;
 }
 
-export async function fetchDetailedTag(id: number): Promise<DetailedTag> {
-    const response = await apiCall(`/api/Tags/${id}?includeAssets=true`, null);
-    const data = await response.json();
-    return data;
-}
-
 export function downloadCollection(id: number, ratings: ContentRatingEnum[]): void {
     const params = new URLSearchParams();
     ratings.forEach(r => params.append("ratings", String(r)));

@@ -6,6 +6,7 @@ import {Nav} from "~/routes/_index";
 import {AuthProvider} from "~/context/AuthContext";
 import {LoadingProvider} from "~/context/LoadingContext";
 import {FiltersProvider} from "~/context/FiltersContext";
+import {ConsentProvider} from "~/context/ConsentContext";
 
 export const links: Route.LinksFunction = () => [
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
@@ -49,7 +50,9 @@ export default function App() {
         <AuthProvider>
             <LoadingProvider>
                 <FiltersProvider>
+                    <ConsentProvider>
                     <Outlet/>
+                    </ConsentProvider>
                 </FiltersProvider>
             </LoadingProvider>
         </AuthProvider>

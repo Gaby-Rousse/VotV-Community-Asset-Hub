@@ -12,13 +12,14 @@ using System.Net.Http.Headers;
 using Amazon.S3;
 using Amazon.S3.Model;
 using VotVAssets.Models.Queries;
+using VotVAssets.Extensions;
 
 
 namespace VotVAssets.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AssetsController(FileService fileService, IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager) : ControllerBase
+public class AssetsController(FileService fileService, IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager, AssetUrlService urls) : ControllerBase
 {
     [Authorize]
     [HttpPost("{id}/transfer")]
@@ -54,7 +55,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                     asset.Thumbnail
                 );
 
-                fileService.TrimTransparentImage(thumbnailPath, thumbnailPath);
+                //fileService.TrimTransparentImage(thumbnailPath, thumbnailPath);
             }
         }
 
@@ -140,7 +141,14 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         int qCount = await query.CountAsync(a => a.Rating == ContentRating.Questionable);
         int eCount = await query.CountAsync(a => a.Rating == ContentRating.Explicit);
 
-        query = query.Where(a => q.Ratings.Contains(a.Rating));
+        var ratings = q.Ratings.ToList();
+
+        if (!User.CanSeeExplicit())
+        {
+            ratings.Remove(ContentRating.Explicit);
+        }
+
+        query = query.Where(a => ratings.Contains(a.Rating));
 
         var totalCount = await query.CountAsync();
 
@@ -149,8 +157,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             .Take(assetsPerPage).Select(a => new {
                 a.Id,
                 a.Name,
-                a.ThumbnailUrl,
-                a.FileUrl,
+                ThumbnailUrl = urls.ThumbnailUrl(a),
                 a.Size,
                 a.CreatedAt,
                 ArtistName = a.Artist!.Name,
@@ -188,6 +195,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             .FirstOrDefaultAsync();
 
         if (asset == null) return NotFound();
+
+        if (asset.Rating == ContentRating.Explicit && !User.CanSeeExplicit())
+            return Unauthorized(new { error = "Login or consent required to view this content." });
 
         if (seeChanges)
         {
@@ -232,9 +242,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             asset.Name,
             asset.OwnerId,
             asset.Filename,
-            asset.ThumbnailUrl,
-            asset.FileUrl,
-            asset.PreviewUrl,
+            ThumbnailUrl = urls.ThumbnailUrl(asset),
+            PreviewUrl = urls.PreviewUrl(asset),
+            FileUrl = urls.FileUrl(asset),
             asset.Size,
             asset.Item,
             asset.Type,
@@ -259,6 +269,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         var asset = await context.Assets.FirstOrDefaultAsync(a => a.Id == id);
         if (asset is null) return NotFound();
 
+        if (asset.Rating == ContentRating.Explicit && !User.CanSeeExplicit())
+            return Unauthorized(new { error = "Login required to view this content." });
+
         var disposition = new ContentDispositionHeaderValue("attachment")
         {
             FileNameStar = asset.Filename
@@ -266,7 +279,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
 
         var request = new GetPreSignedUrlRequest
         {
-            BucketName = "votvbroadcast",
+            BucketName = asset.Rating == ContentRating.Explicit ? "vcah-explicit" : "votvbroadcast",
             Key = $"VCAH/uploads/files/{asset.Filename}",
             Verb = HttpVerb.GET,
             Protocol = Protocol.HTTPS,
@@ -375,7 +388,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                     if (pendingChanges.ContainsKey("thumbnail"))
                     {
                         pendingChanges.TryGetValue("thumbnail", out JsonElement oldThumbnail);
-                        fileService.DeleteFile(Path.Combine("temp_uploads", "thumbnails", oldThumbnail.GetString() ?? ""));
+                        await fileService.DeleteFileAsync(Path.Combine("temp_uploads", "thumbnails", oldThumbnail.GetString() ?? ""));
                     }
                 }
                 else if (pendingChanges.ContainsKey("thumbnail"))
@@ -388,7 +401,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                     if (pendingChanges.ContainsKey("preview"))
                     {
                         pendingChanges.TryGetValue("preview", out JsonElement oldPreview);
-                        fileService.DeleteFile(Path.Combine("temp_uploads", "previews", oldPreview.GetString() ?? ""));
+                        await fileService.DeleteFileAsync(Path.Combine("temp_uploads", "previews", oldPreview.GetString() ?? ""));
                     }
                 }
                 else if (pendingChanges.ContainsKey("preview"))
@@ -416,6 +429,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             return NoContent();
         }
 
+        if (asset.Rating == ContentRating.Explicit && !User.CanSeeExplicit())
+            return StatusCode(403, new { error = "You must confirm you are 18+ to publish explicit content." });
+
         context.Entry(asset).State = EntityState.Modified;
 
         asset.OwnerId = existingAsset.OwnerId;
@@ -428,7 +444,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         {
             if (thumbnail == "INVALID_TYPE")
                 return BadRequest(new { error = "Only images are allowed for thumbnail." });
-            fileService.DeleteFile(Path.Combine("uploads", "thumbnails", existingAsset.Thumbnail ?? ""));
+            await fileService.DeleteFileAsync(Path.Combine("uploads", "thumbnails", existingAsset.Thumbnail ?? ""));
             asset.Thumbnail = thumbnail;
         }
         else
@@ -446,7 +462,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                 if (preview == "INVALID_TYPE")
                     return BadRequest(new { error = "Only images are allowed for the ATV preview" });
 
-                fileService.DeleteFile(Path.Combine("uploads", "previews", existingAsset.Preview ?? ""));
+                await fileService.DeleteFileAsync(Path.Combine("uploads", "previews", existingAsset.Preview ?? ""));
                 asset.Preview = preview;
             }
         }
@@ -459,7 +475,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                 if (preview == "INVALID_TYPE")
                     return BadRequest(new { error = "Only .glb files are allowed for the 3D preview" });
 
-                fileService.DeleteFile(Path.Combine("uploads", "previews", existingAsset.Preview ?? ""));
+                await fileService.DeleteFileAsync(Path.Combine("uploads", "previews", existingAsset.Preview ?? ""));
                 asset.Preview = preview;
             }
         }
@@ -479,6 +495,8 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             throw;
         }
 
+        await fileService.SyncBucket(asset, existingAsset.Rating == ContentRating.Explicit);
+
         return NoContent();
     }
 
@@ -490,6 +508,10 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
     [HttpPost]
     public async Task<ActionResult<Asset>> PostAsset([FromForm] Asset asset)
     {
+
+        if (asset.Rating == ContentRating.Explicit && !User.CanSeeExplicit())
+            return StatusCode(403, new { error = "You must confirm you are 18+ to publish explicit content." });
+
         asset.OwnerId = userManager.GetUserId(User);
 
         //tag validation + parsing
@@ -557,6 +579,8 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         await SyncTags(asset, tagNames);
         await context.SaveChangesAsync();
 
+        await fileService.SyncBucket(asset, false);
+
         return CreatedAtAction(nameof(GetAsset), new { id = asset.Id }, asset);
     }
 
@@ -578,10 +602,10 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
     
             if (changes.TryGetValue("thumbnail", out var thumbnail))
-                fileService.DeleteFile(Path.Combine("temp_uploads", "thumbnails", thumbnail.GetString()!));
+                await fileService.DeleteFileAsync(Path.Combine("temp_uploads", "thumbnails", thumbnail.GetString()!));
     
             if (changes.TryGetValue("preview", out var preview))
-                fileService.DeleteFile(Path.Combine("temp_uploads", "previews", preview.GetString()!));
+                await fileService.DeleteFileAsync(Path.Combine("temp_uploads", "previews", preview.GetString()!));
         }
 
         context.Edits.RemoveRange(edits);
@@ -589,10 +613,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         context.Assets.Remove(asset);
         await context.SaveChangesAsync();
 
-        fileService.DeleteFile(
-            Path.Combine("uploads", "thumbnails", asset.Thumbnail ?? ""));
-        fileService.DeleteFile(Path.Combine("uploads", "files", asset.Filename ?? ""));
-        fileService.DeleteFile(Path.Combine("uploads", "previews", asset.Preview ?? ""));
+        await fileService.DeleteFileAsync(Path.Combine("uploads", "thumbnails", asset.Thumbnail ?? ""));
+        await fileService.DeleteFileAsync(Path.Combine("uploads", "files", asset.Filename ?? ""));
+        await fileService.DeleteFileAsync(Path.Combine("uploads", "previews", asset.Preview ?? ""));
         return NoContent();
     }
 

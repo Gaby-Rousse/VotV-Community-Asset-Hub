@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using VotVAssets.Models;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using VotVAssets.Extensions;
 
 namespace VotVAssets.Controllers;
 
@@ -44,12 +48,15 @@ public class AccountsController(UserManager<IdentityUser> userManager, SignInMan
 
             var isAdmin = await userManager.IsInRoleAsync(currentUser, "Admin");
 
+
+
             return Ok(new
             {
                 IsAuthenticated = true,
                 Username = User.Identity.Name,
                 currentUser.Id,
-                IsAdmin = isAdmin
+                IsAdmin = isAdmin,
+                explicitConsent = User.CanSeeExplicit()
             });
         }
 
@@ -62,4 +69,43 @@ public class AccountsController(UserManager<IdentityUser> userManager, SignInMan
         await signInManager.SignOutAsync();
         return Ok();
     }
+
+    //Consent
+
+    [Authorize]
+    [HttpPost("explicit-consent")]
+    public async Task<IActionResult> GiveExplicitConsent(SignInManager<IdentityUser> signInManager)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        var claims = await userManager.GetClaimsAsync(user);
+        if (!claims.Any(c => c.Type == AssetQueryExtensions.ExplicitConsentClaim))
+        {
+            await userManager.AddClaimAsync(user,
+                new Claim(AssetQueryExtensions.ExplicitConsentClaim, DateTime.UtcNow.ToString("o")));
+            await signInManager.RefreshSignInAsync(user);
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpDelete("explicit-consent")]
+    public async Task<IActionResult> RevokeExplicitConsent(SignInManager<IdentityUser> signInManager)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        var claims = await userManager.GetClaimsAsync(user);
+        var consent = claims.Where(c => c.Type == AssetQueryExtensions.ExplicitConsentClaim).ToList();
+        if (consent.Count > 0)
+        {
+            await userManager.RemoveClaimsAsync(user, consent);
+            await signInManager.RefreshSignInAsync(user);
+        }
+
+        return NoContent();
+    }
+
 }

@@ -8,6 +8,7 @@ const AuthContext = createContext({
     },
     id: "",
     isAdmin: false,
+    explicitConsent: false,
 });
 
 export const AuthProvider = ({children}: any) => {
@@ -15,6 +16,7 @@ export const AuthProvider = ({children}: any) => {
     const [username, setUsername] = useState("")
     const [id, setId] = useState("")
     const [isAdmin, setIsAdmin] = useState(false);
+    const [explicitConsent, setExplicitConsent] = useState(false);
 
     useEffect(() => {
         checkAuth()
@@ -28,6 +30,7 @@ export const AuthProvider = ({children}: any) => {
                 setUsername(data.username);
                 setId(data.id);
                 setIsAdmin(data.isAdmin || false);
+                setExplicitConsent(data.explicitConsent || false);
             })
             .catch(() => {
                 setIsAuthenticated(false);
@@ -42,7 +45,8 @@ export const AuthProvider = ({children}: any) => {
                 isAdmin: isAdmin,
                 isAuthenticated: isAuthenticated,
                 username: username,
-                refreshAuth: () => checkAuth()
+                refreshAuth: () => checkAuth(),
+                explicitConsent: explicitConsent
             }}>
             {children}
         </AuthContext.Provider>

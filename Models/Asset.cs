@@ -39,18 +39,6 @@ public class Asset : Timestamp
     public TypeEnum? Type { get; set; }
 
     public string? Preview { get; set; }
-
-    public string PreviewUrl => string.IsNullOrEmpty(Preview)
-        ? "NOT_AVAILABLE"
-        : $"https://cdn.votvbroadcast.com/VCAH/uploads/previews/{Preview}";
-    
-    public string ThumbnailUrl => string.IsNullOrEmpty(Thumbnail)
-        ? "/uploads/thumbnails/picture.png"
-        : Thumbnail.StartsWith("temp/")
-            ? $"https://cdn.votvbroadcast.com/VCAH/temp_uploads/thumbnails/{Thumbnail.Substring(4)}"
-            : $"https://cdn.votvbroadcast.com/VCAH/uploads/thumbnails/{Thumbnail}";
-    
-    public string FileUrl => $"/uploads/files/{Filename}";
     
     public long? RawSize { get; set; }
     public string Size => RawSize != null ? BytesToString(RawSize.Value) : "N/A";

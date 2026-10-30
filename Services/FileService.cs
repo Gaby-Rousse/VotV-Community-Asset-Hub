@@ -10,10 +10,31 @@ using Aspose.Zip.ArchiveInfo;
 using Microsoft.AspNetCore.StaticFiles;
 using Amazon.S3;
 using Amazon.S3.Model;
-using VotVAssets.Models;
+using Models;
+using Models.Enums;
+
 
 public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
 {
+    private const int MaxImageDimension = 8000;
+    private static async Task<Image<Rgba32>?> LoadValidatedImage(IFormFile file)
+    {
+        try
+        {
+            await using var stream = file.OpenReadStream();
+
+            var info = await Image.IdentifyAsync(stream);
+            if (info.Width > MaxImageDimension || info.Height > MaxImageDimension)
+                return null;
+
+            stream.Position = 0;
+            return await Image.LoadAsync<Rgba32>(stream);
+        }
+        catch (ImageFormatException)
+        {
+            return null;
+        }
+    }
 
     //I HATE AMAZON DAWGSHIT DOCUMENTATION
     //HERE THE CLOUDFLARE SNIPPETS THAT ARE SO USELESS BUT BETTER THAN USING AI
@@ -21,29 +42,69 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
     //Key = The destination, in the bucket
     //DisablePayloadSigning and DisableDefaultChecksumValidation are both true in Cloudflare snippet
     //I don't know why.
-    async Task PutObject(string filePath, string destination)
+    async Task PutObject(string filePath, string key, bool isExplicit = false)
     {
-        var request = new PutObjectRequest
+        await s3Client.PutObjectAsync(new PutObjectRequest
         {
             FilePath = filePath,
-            Key = $"VCAH/{destination}",
-            BucketName = "votvbroadcast",
+            Key = $"VCAH/{key}",
+            BucketName = isExplicit ? "vcah-explicit" : "votvbroadcast",
             DisablePayloadSigning = true,
             DisableDefaultChecksumValidation = true
-        };
-
-        await s3Client.PutObjectAsync(request);
+        });
     }
 
-    async Task DeleteObject(string key)
+    async Task DeleteObject(string key, bool isExplicit)
     {
-        var request = new DeleteObjectRequest
+        await s3Client.DeleteObjectAsync(new DeleteObjectRequest
         {
             Key = $"VCAH/{key}",
-            BucketName = "votvbroadcast",
-        };
+            BucketName = isExplicit ? "vcah-explicit" : "votvbroadcast"
+        });
+    }
 
-        var response = await s3Client.DeleteObjectAsync(request);
+    public async Task DeleteFileAsync(string key)
+    {
+        if (string.IsNullOrEmpty(Path.GetFileName(key))) return;
+
+        var local = Path.Combine(environment.ContentRootPath, "wwwroot", key);
+        if (File.Exists(local)) File.Delete(local);
+
+        await DeleteObject(key, false);
+        await DeleteObject(key, true);
+    }
+
+    public async Task SyncBucket(Asset asset, bool wasExplicit)
+    {
+        bool isExplicit = asset.Rating == ContentRating.Explicit;
+        if (!isExplicit && !wasExplicit) return;
+
+        string[] keys =
+        [
+            $"uploads/files/{asset.Filename}",
+            $"uploads/thumbnails/{asset.Thumbnail}",
+            $"uploads/previews/{asset.Preview}"
+        ];
+
+        foreach (var key in keys)
+        {
+            var local = Path.Combine(environment.ContentRootPath, "wwwroot", key);
+            if (!File.Exists(local)) continue;
+
+            await PutObject(local, key, isExplicit);
+            await DeleteObject(key, !isExplicit);
+        }
+    }
+
+    public async Task PromoteTempAsync(string folder, string fileName)
+    {
+        var root = Path.Combine(environment.ContentRootPath, "wwwroot");
+        var tempKey = $"temp_uploads/{folder}/{fileName}";
+        var finalKey = $"uploads/{folder}/{fileName}";
+
+        File.Move(Path.Combine(root, tempKey), Path.Combine(root, finalKey));
+        await PutObject(Path.Combine(root, finalKey), finalKey);
+        await DeleteObject(tempKey, false);
     }
 
     //List from here: https://docs.aspose.net/zip/developer-guide/universal-extractor/
@@ -62,38 +123,19 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         ContentTypes.TryGetContentType(filename, out var type)
         && type.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 
-    public void DeleteFile(string key)
-    {
-        string systemFilePath = Path.Combine(environment.ContentRootPath, "wwwroot",key);
-
-        if (System.IO.File.Exists(systemFilePath))
-            System.IO.File.Delete(systemFilePath);
-
-        DeleteObject(key);
-    }
-
     public async Task<string?> HandlePfp(IFormFile? avatar, bool temp = false)
     {
-        var rootPath = environment.ContentRootPath;
+        if (avatar == null) return null;
+
+        using var image = await LoadValidatedImage(avatar);
+        if (image == null) return "INVALID_TYPE";
 
         var keyFolder = Path.Combine(temp ? "temp_uploads" : "uploads", "avatars");
-        var uploadFolder = Path.Combine(rootPath, "wwwroot", keyFolder);
+        var fileName = $"{Guid.NewGuid()}.webp";
+        var fullPath = Path.Combine(environment.ContentRootPath, "wwwroot", keyFolder, fileName);
 
-
-        if (avatar == null) return null;
-        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(avatar.FileName)}";
-        var fullPath = Path.Combine(uploadFolder, fileName);
-
-        await using (var stream = new FileStream(fullPath, FileMode.Create))
-        {
-            await avatar.CopyToAsync(stream);
-        }
-
-        ResizeImage(fullPath,fullPath);
-
-        string r2Path = Path.Combine(keyFolder, fileName);
-        await PutObject(fullPath, r2Path);
-
+        ResizeImage2(image, fullPath);
+        await PutObject(fullPath, Path.Combine(keyFolder, fileName));
         return fileName;
     }
 
@@ -101,34 +143,15 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
     {
         if (thumbnail == null) return null;
 
-        var rootPath = environment.ContentRootPath;
+        using var image = await LoadValidatedImage(thumbnail);
+        if (image == null) return "INVALID_TYPE";
+
         var keyFolder = Path.Combine(temp ? "temp_uploads" : "uploads", "thumbnails");
-        var uploadFolder = Path.Combine(rootPath, "wwwroot", keyFolder);
-
-        try
-        {
-            var info = await Image.IdentifyAsync(thumbnail.OpenReadStream());
-        }
-        catch (Exception)
-        {
-            return "INVALID_TYPE";
-        }
-
         var fileName = $"{Guid.NewGuid()}.webp";
-        var fullPath = Path.Combine(uploadFolder, fileName);
+        var fullPath = Path.Combine(environment.ContentRootPath, "wwwroot", keyFolder, fileName);
 
-        await using (var stream = new FileStream(fullPath, FileMode.Create))
-        {
-            await thumbnail.CopyToAsync(stream);
-        }
-
-
-
-        TrimTransparentImage(fullPath, fullPath);
-
-        string r2Path = Path.Combine(keyFolder, fileName);
-        await PutObject(fullPath, r2Path);
-
+        TrimTransparentImage(image, fullPath);
+        await PutObject(fullPath, Path.Combine(keyFolder, fileName));
         return fileName;
     }
 
@@ -220,7 +243,7 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         }
         finally
         {
-            try { DeleteFile(tempPath); } catch { /* idc */ }
+            try { await DeleteFileAsync(tempPath); } catch { /* idc */ }
         }
     }
 
@@ -314,7 +337,7 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         Image? image = null;
         try
         {
-            image = await Image.LoadAsync(file.OpenReadStream());
+            image = await LoadValidatedImage(file);
         }
         catch (ImageFormatException)
         {
@@ -336,6 +359,8 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         }
 
         ArchiveFormatInfo AII = ArchiveInstanceInfo.GetArchiveFormatInfo(file.OpenReadStream());
+        if(AII == null)
+            return "INVALID_TYPE"; //fishy
         if (!supportedFormats.ContainsKey(AII.Format))
             return "INVALID_TYPE";
 
@@ -358,10 +383,8 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         return length;
     }
 
-    public void TrimTransparentImage(string inputPath, string outputPath)
+    public void TrimTransparentImage(Image<Rgba32> image, string outputPath)
     {
-        using var image = Image.Load<Rgba32>(inputPath);
-
         int width = image.Width;
         int height = image.Height;
 

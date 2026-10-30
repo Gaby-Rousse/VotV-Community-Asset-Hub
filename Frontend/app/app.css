@@ -159,6 +159,9 @@ input:focus, textarea:focus {
 
 button:active {
     transform: translateY(2px);
+}
+
+button:not(.rating-buttons *):active {
     border-color: #a5aa37 !important;
     color: #a5aa37 !important;
 }
@@ -200,3 +203,5 @@ button:hover
 label:hover {
     cursor: pointer;
 }
+
+

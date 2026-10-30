@@ -31,6 +31,12 @@ export async function apiCall(endpoint: string, formData: FormData | null, metho
 
 }
 
+export class ApiError extends Error {
+    constructor(public status: number) {
+        super(`HTTP ${status}`);
+    }
+}
+
 export function GenerateSocial({url}: { url: string }) {
     const lowUrl = url.toLowerCase();
 

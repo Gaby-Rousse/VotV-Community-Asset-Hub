@@ -1,3 +1,6 @@
+using VotVAssets.Models.Enums;
+using VotVAssets.Services;
+
 namespace VotVAssets.Controllers;
 
 using System.Text.Json;
@@ -9,7 +12,7 @@ using VotVAssets.Models;
 
 [Route("api/[controller]")]
 [ApiController]
-public class EditsController(IWebHostEnvironment environment, ApplicationDbContext context, UserManager<IdentityUser> userManager) : ControllerBase
+public class EditsController(ApplicationDbContext context, UserManager<IdentityUser> userManager, FileService fileService) : ControllerBase
 {
     [Authorize(Roles = "Admin")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -58,6 +61,9 @@ public class EditsController(IWebHostEnvironment environment, ApplicationDbConte
 
         var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
 
+        Asset? editedAsset = null;
+        bool wasExplicit = false;
+
         if (edit.Table == Table.Asset)
         {
             var asset = await context.Assets
@@ -65,8 +71,14 @@ public class EditsController(IWebHostEnvironment environment, ApplicationDbConte
                 .FirstOrDefaultAsync(a => a.Id == edit.TargetId);
             if (asset == null) return NotFound();
 
+            editedAsset = asset;
+            wasExplicit = asset.Rating == ContentRating.Explicit;
+
             if (changes.TryGetValue("name", out var name))
                 asset.Name = name.GetString()!;
+
+            if (changes.TryGetValue("rating", out var rating))
+                asset.Rating = (ContentRating)rating.GetInt32();
 
             if (changes.TryGetValue("description", out var description))
                 asset.Description = description.GetString();
@@ -94,25 +106,15 @@ public class EditsController(IWebHostEnvironment environment, ApplicationDbConte
 
             if (changes.TryGetValue("thumbnail", out var thumbnail))
             {
-                var tempPath = Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "thumbnails",
-                    thumbnail.GetString()!);
-                var finalPath = Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "thumbnails",
-                    thumbnail.GetString()!);
-                DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "thumbnails",
-                    asset.Thumbnail ?? ""));
-                System.IO.File.Move(tempPath, finalPath);
+                await fileService.DeleteFileAsync($"uploads/thumbnails/{asset.Thumbnail}");
+                await fileService.PromoteTempAsync("thumbnails", thumbnail.GetString()!);
                 asset.Thumbnail = thumbnail.GetString();
             }
 
             if (changes.TryGetValue("preview", out var preview))
             {
-                var tempPath = Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "previews",
-                    preview.GetString()!);
-                var finalPath = Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "previews",
-                    preview.GetString()!);
-                DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "previews",
-                    asset.Preview ?? ""));
-                System.IO.File.Move(tempPath, finalPath);
+                await fileService.DeleteFileAsync($"uploads/previews/{asset.Preview}");
+                await fileService.PromoteTempAsync("previews", preview.GetString()!);
                 asset.Preview = preview.GetString();
             }
         }
@@ -132,19 +134,18 @@ public class EditsController(IWebHostEnvironment environment, ApplicationDbConte
 
             if (changes.TryGetValue("pfp", out var pfp))
             {
-                var tempPath = Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "avatars",
-                    pfp.GetString()!);
-                var finalPath = Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "avatars",
-                    pfp.GetString()!);
-                DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "avatars",
-                    artist.Pfp ?? ""));
-                System.IO.File.Move(tempPath, finalPath);
+                await fileService.DeleteFileAsync($"uploads/avatars/{artist.Pfp}");
+                await fileService.PromoteTempAsync("avatars", pfp.GetString()!);
                 artist.Pfp = pfp.GetString();
             }
         }
 
         context.Edits.Remove(edit);
         await context.SaveChangesAsync();
+
+        if (editedAsset != null)
+            await fileService.SyncBucket(editedAsset, wasExplicit);
+
         return Ok();
     }
 
@@ -158,22 +159,19 @@ public class EditsController(IWebHostEnvironment environment, ApplicationDbConte
         var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
 
         if (changes.TryGetValue("thumbnail", out var thumbnail))
-            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "thumbnails",
-                thumbnail.GetString()!));
+            await fileService.DeleteFileAsync($"temp_uploads/thumbnails/{thumbnail.GetString()}");
 
         if (changes.TryGetValue("preview", out var preview))
-            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "previews",
-                preview.GetString()!));
+            await fileService.DeleteFileAsync($"temp_uploads/previews/{preview.GetString()}");
 
         if (changes.TryGetValue("pfp", out var pfp))
-            DeleteFile(
-                Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "avatars", pfp.GetString()!));
+            await fileService.DeleteFileAsync($"temp_uploads/avatars/{pfp.GetString()}");
 
         context.Edits.Remove(edit);
         await context.SaveChangesAsync();
         return Ok();
     }
-    
+
     [Authorize]
     [HttpDelete("target/{targetId}")]
     public async Task<IActionResult> DeleteEdit(long targetId)
@@ -186,25 +184,17 @@ public class EditsController(IWebHostEnvironment environment, ApplicationDbConte
         var changes = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(edit.Changes);
 
         if (changes.TryGetValue("thumbnail", out var thumbnail))
-            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "thumbnails", thumbnail.GetString()!));
+            await fileService.DeleteFileAsync($"temp_uploads/thumbnails/{thumbnail.GetString()}");
 
         if (changes.TryGetValue("preview", out var preview))
-            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "previews", preview.GetString()!));
+            await fileService.DeleteFileAsync($"temp_uploads/previews/{preview.GetString()}");
 
         if (changes.TryGetValue("pfp", out var pfp))
-            DeleteFile(Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", "avatars", pfp.GetString()!));
+            await fileService.DeleteFileAsync($"temp_uploads/avatars/{pfp.GetString()}");
 
         context.Edits.Remove(edit);
         await context.SaveChangesAsync();
 
         return NoContent();
-    }
-
-
-
-    private void DeleteFile(string filepath)
-    {
-        if (System.IO.File.Exists(filepath))
-            System.IO.File.Delete(filepath);
     }
 }

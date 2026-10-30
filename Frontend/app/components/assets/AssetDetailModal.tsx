@@ -3,11 +3,15 @@ import type Asset from "~/models/interfaces/Asset";
 import {useAuth} from "~/context/AuthContext";
 import {useLoading} from "~/context/LoadingContext";
 import {OrbitControls, Stage, useGLTF} from "@react-three/drei";
-import {apiCall, downloadFile, GenerateSocial} from "../Functions";
+import {apiCall, ApiError, downloadFile, GenerateSocial} from "../Functions";
 import {Canvas} from "@react-three/fiber";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {fetchAsset} from "~/api/assets";
 import ContentRatingEnum from "~/models/enums/ContentRatingEnum";
+import {useConsent} from "~/context/ConsentContext";
+import {Link, useSearchParams} from "react-router";
+import {filtersToParams} from "~/helpers/filterParams";
+import {useFilters} from "~/context/FiltersContext";
 
 export default function AssetDetailModal({id, setId, setIsNavigating, setSelectedAsset, setTrigger}: {
     id: number,
@@ -18,21 +22,35 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
 }) {
     const [asset, setAsset] = useState<Asset | null>();
     const [askConfirmation, setAskConfirmation] = useState(false);
-    const {isAuthenticated, isAdmin, id: userId} = useAuth();
+    const {isAuthenticated, isAdmin, id: userId, explicitConsent} = useAuth();
+    const requestConsent = useConsent();
     const {isLoading, setIsLoading} = useLoading();
     const [lighting, setLighting] = useState(1.0);
     const [color, setColor] = useState("#000000")
     const [copied, setCopied] = useState(false)
     const [previewOk, setPreviewOk] = useState<null|boolean>(null)
 
+    const [searchParams] = useSearchParams();
+    const {filters} = useFilters();
+
+    const [locked, setLocked] = useState(false);
+
     useEffect(() => {
         setIsLoading(true);
+        setLocked(false);
         fetchAsset(id)
             .then(asset => {
                 setAsset(asset);
             })
-            .catch(err => console.error(err)).finally(() => setIsLoading(false));
-    }, [id]);
+            .catch(err => {
+                if (err instanceof ApiError && err.status === 401) {
+                    setLocked(true);
+                } else {
+                    console.error(err);
+                }
+            })
+            .finally(() => setIsLoading(false));
+    }, [id, isAuthenticated, explicitConsent]);
 
     useEffect(() => {
         if (!asset?.previewUrl || asset.previewUrl === "NOT_AVAILABLE") {
@@ -47,8 +65,11 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
         return () => { cancelled = true; };
     }, [asset?.previewUrl]);
 
+
+
     async function deleteAsset(id: number) {
         let response = await apiCall(`/api/Assets/${id}`, new FormData(), "DELETE");
+
         if (response.ok) {
             setTrigger(Date.now())
             setId(0)
@@ -81,6 +102,24 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
         [ContentRatingEnum.Questionable]: "Q",
         [ContentRatingEnum.Explicit]: "E",
     };
+
+    if (locked) {
+        const params = filtersToParams(filters);
+        const assetId = searchParams.get("assetId");
+        if (assetId) params.set("assetId", assetId);
+
+        return (
+            <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 pb-8 bg-black/50 z-20">
+                <div className="flex flex-col gap-4 mx-auto justify-center items-center my-auto border-white w-full h-1/2 px-2 lg:w-2/3 dos text-xl bg-black border-2 xl:overflow-hidden">
+                <div className="mt-auto">This content is rated Explicit and is only available to users 18 or older.</div>
+                {isAuthenticated
+                    ? <button className="border-2 px-4 py-2 mb-auto" type="button" onClick={() => requestConsent()}>View explicit content</button>
+                    : <Link className="border-2 px-4 py-2 mb-auto" to={`/login?${params}`}>Log in</Link>}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <>
             <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 pb-8 bg-black/50 z-20 ">

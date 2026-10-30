@@ -27,7 +27,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
     const [assetId, setAssetId] = useState(parseInt(searchParams.get("assetId") ?? "0"));
     const [trigger, setTrigger] = useState(0);
     const {isLoading, setIsLoading} = useLoading();
-    const {isAuthenticated, id, isAdmin} = useAuth()
+    const {isAuthenticated, id, isAdmin, explicitConsent} = useAuth()
     const [menuOpened, setMenuOpened] = useState(false);
     const [timeTaken, setTimeTaken] = useState(0.0);
     //0 thumbnail, 1 list, 2 posts
@@ -36,14 +36,6 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
     const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    const [ratings, setRatings] = useState<ContentRatingEnum[]>([ContentRatingEnum.General])
-
-    useEffect(() => {
-        setFilters(prevState => ({...prevState, page: 1, ratings}))
-        const params = filtersToParams(filters);
-        setSearchParams(params, { replace: true });
-    }, [ratings]);
 
     useEffect(() => {
         const fromInput = tagQuery.trim().split(/\s+/).filter(Boolean);
@@ -78,7 +70,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
         }, delay);
 
         return () => clearTimeout(timeout);
-    }, [trigger, filters]);
+    }, [trigger, filters, explicitConsent]);
 
     function updateAssetId(assetId: number) {
         const params = filtersToParams(filters);
@@ -253,7 +245,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                     </div>
                     <div className="flex gap-1 mt-1 flex-row">
                         <div className="my-auto">Rating(s):</div>
-                        <RatingCheckboxInput setReaderValue={setRatings} ratingsCount={info.ratingsCount}/>
+                        <RatingCheckboxInput oldValue={filters.ratings} setReaderValue={r => setFilters(prev => ({...prev, ratings: r, page: 1}))} ratingsCount={info.ratingsCount}/>
                     </div>
                     <div className="flex gap-1 mt-1 flex-row">
                         <div className="text-nowrap">Tags filter:</div>
