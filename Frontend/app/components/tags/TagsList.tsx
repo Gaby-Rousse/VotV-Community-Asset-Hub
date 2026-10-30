@@ -21,7 +21,10 @@ export default function ListCollections(
     const {setIsLoading} = useLoading();
     const [tags, setTags] = useState<Tag[]>([]);
     const [info, setInfo] = useState<Info>(defaultInfo);
-    const [filters, setFilters] = useState<Filters>(() => paramsToFilters(searchParams, defaultTagFilters));
+    const [filters, setFilters] = useState<Filters>(() => ({
+        ...paramsToFilters(searchParams, defaultTagFilters),
+        item: null,
+    }));
     const [menuOpened, setMenuOpened] = useState(false);
     const [timeTaken, setTimeTaken] = useState<number>();
     const [display, setDisplay] = useState<number>(0);
@@ -66,7 +69,7 @@ export default function ListCollections(
         <div onClick={() => setMenuOpened(!menuOpened)}
              className="flex flex-row h-8 w-full px-6 hover:cursor-pointer border-b items-center">
             <div className="dos">{menuOpened ? ("▼") : ("▲")}</div>
-            <div className="mx-auto dos">Menu</div>
+            <div className="mx-auto dos">Advanced Search</div>
             <div className="dos">{menuOpened ? ("▼") : ("▲")}</div>
         </div>
         {menuOpened && (<div className="p-2 flex gap-1 flex-col">
@@ -136,7 +139,7 @@ export default function ListCollections(
                         <img loading="lazy" className="absolute object-contain mx-auto w-full h-full"
                              alt="thumbnail" src={t.thumbnailUrl || undefined}/>
                         <div className="absolute px-1 top-0 h-10 w-full flex items-center flex-col bg-black/50">
-                            <div className="dos line-clamp-1 my-auto text-center">{t.name}</div>
+                            <div className="dos line-clamp-1 w-9/10 my-auto text-center">{t.name}</div>
                         </div>
                         <div className="absolute px-1 bottom-0 h-10 w-full flex flex-col bg-black/50">
                             <div className="dos mx-auto">Count: {t.count ?? "N/A"}</div>

@@ -28,7 +28,7 @@ public async Task<ActionResult> GetTags(
 
     var hasPrefix = !string.IsNullOrWhiteSpace(prefix);
 
-    if (!hasPrefix)
+    if (!hasPrefix || item == ItemEnum.All)
         item = null;
 
     var query = context.Tags.AsQueryable();
@@ -119,8 +119,10 @@ public async Task<ActionResult> GetTags(
 
     // GET: api/Tags/5/download
     [HttpGet("{id}/download")]
-    public async Task<IActionResult> DownloadCollection(int id)
+    public async Task<IActionResult> DownloadCollection(int id, [FromQuery] ContentRating[]? ratings = null)
     {
+        ratings ??= [ContentRating.General];
+
         var rootPath = environment.ContentRootPath;
         var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "files");
 
@@ -129,7 +131,8 @@ public async Task<ActionResult> GetTags(
             .Select(t => new
             {
                 t.Name,
-                Assets = t.Assets.Select(a => new { a.Id, a.Filename, FilePath = Path.Combine(uploadFolder, a.Filename) }).ToList() // adapt to your model
+                Assets = t.Assets .Where(a => ratings.Contains(a.Rating))
+                    .Select(a => new { a.Id, a.Filename, FilePath = Path.Combine(uploadFolder, a.Filename) }).ToList() // adapt to your model
             })
             .FirstOrDefaultAsync();
 

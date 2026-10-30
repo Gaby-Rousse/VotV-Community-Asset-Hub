@@ -1,10 +1,11 @@
 import { defaultFilters, type Filters, SearchBy, SortBy } from "~/models/interfaces/Filters";
 import TypeEnum from "~/models/enums/TypeEnum";
 import ItemEnum from "~/models/enums/ItemEnum";
+import type ContentRatingEnum from "~/models/enums/ContentRatingEnum";
 
 export function filtersToParams(filters: Filters, defaults: Filters = defaultFilters): URLSearchParams {
     const params = new URLSearchParams();
-    if (filters.item != null)
+    if (filters.item != null && filters.item !== defaults.item)
         params.set("item", String(filters.item));
     if (filters.type !== defaults.type)
         params.set("type", String(filters.type));
@@ -22,6 +23,9 @@ export function filtersToParams(filters: Filters, defaults: Filters = defaultFil
         params.set("page", String(filters.page));
     if (filters.ownerId)
         params.set("ownerId", filters.ownerId);
+    const sameRatings = [...filters.ratings].sort((a, b) => a - b).join() === [...defaults.ratings].sort((a, b) => a - b).join();
+    if (!sameRatings)
+        filters.ratings.forEach(r => params.append("ratings", String(r)));
     return params;
 }
 
@@ -36,5 +40,8 @@ export function paramsToFilters(params: URLSearchParams, defaults: Filters = def
         reverse:  params.get("reverse") === "true",
         page:     parseInt(params.get("page") ?? "1") || 1,
         ownerId:  params.get("ownerId") ?? "",
+        ratings: params.has("ratings")
+            ? params.getAll("ratings").map(Number) as ContentRatingEnum[]
+            : defaults.ratings,
     };
 }

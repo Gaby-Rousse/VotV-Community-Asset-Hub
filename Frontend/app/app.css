@@ -20,6 +20,16 @@
     }
 }
 
+:root {
+    --inactive-green: #a6d189;
+    --inactive-yellow: #e5c890;
+    --inactive-red: #e78284;
+
+    --active-green: #317d1e;
+    --active-yellow: #daa358;
+    --active-red: #aa2d2f;
+}
+
 html {
     background-image: url("https://votvbroadcast.com/images/bg.png");
     background-attachment: fixed;
@@ -85,6 +95,14 @@ nav a:hover {
 .dos {
     font-family: fsex300, serif;
     color: #F8FE50
+}
+
+.text-dos {
+    font-family: fsex300, serif;
+}
+
+button:disabled {
+    opacity: 0.5;
 }
 
 .red {
@@ -171,5 +189,14 @@ button:hover
 }
 
 .simplebar-content:hover {
+    cursor: pointer;
+}
+
+.poster-bg {
+    background-image: url("https://cdn.votvbroadcast.com/public/assets/concrete_bg.webp");
+    background-size: cover;
+}
+
+label:hover {
     cursor: pointer;
 }

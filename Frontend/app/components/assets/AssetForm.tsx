@@ -7,6 +7,9 @@ import ArtistDropdown from "~/components/artists/ArtistDropdown";
 import AdvancedFields from "~/components/other/AdvancedFields";
 import {useFloating, autoUpdate, offset, flip, size, hide, FloatingPortal} from "@floating-ui/react";
 import SimpleBar from "simplebar-react";
+import {useFilters} from "~/context/FiltersContext";
+import TypeEnum from "~/models/enums/TypeEnum";
+import RatingRadioInput from "~/components/other/RatingRadioInput";
 
 export default function AssetForm({item, asset, setIsNavigating}: {
     item: number,
@@ -24,6 +27,15 @@ export default function AssetForm({item, asset, setIsNavigating}: {
     const [error, setError] = useState("");
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
+
+    const {filters, setFilters} = useFilters();
+
+    useEffect(() => {
+        if (!asset) return;
+        const saved = filters;
+        setFilters(prev => ({...prev, item: asset.item, type: TypeEnum.All}));
+        return () => setFilters(saved);
+    }, []);
 
     const {refs, floatingStyles, middlewareData} = useFloating({
         placement: "bottom-start",
@@ -159,6 +171,14 @@ export default function AssetForm({item, asset, setIsNavigating}: {
         }
     }
 
+    if(item == ItemEnum.All && asset == null)
+        return (
+            <div className="dos text-xl m-auto text-center">
+                You must select an asset category (Posters, Flags, Rugs, etc...) before uploading.<br/>
+                Select one in the navigation bar above.
+            </div>
+        );
+
     return (
         <>
             {showSuggestions && (
@@ -223,6 +243,11 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                             <ArtistDropdown initialArtistId={asset?.artist.id ?? null}
                                             onSelect={setArtistId}></ArtistDropdown>
                         </div>
+                        <div className="flex items-center h-12 flex-row gap-1">
+                            <div className="dos"><b className="red dos mr-1">*</b>Rating:</div>
+                            <RatingRadioInput setReaderValue={() => {}} oldValue={asset?.rating}/>
+                        </div>
+
                         {item == 1 ? (<div className="flex mb-1 items-center flex-row gap-3">
                             <div className="dos"><b className="red dos mr-1">*</b>Ratio:</div>
                             <select value={selectedOption} onChange={handleChange}

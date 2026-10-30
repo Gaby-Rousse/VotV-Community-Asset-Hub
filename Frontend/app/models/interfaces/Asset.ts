@@ -2,6 +2,7 @@ import TypeEnum from '../enums/TypeEnum';
 import type ItemEnum from "~/models/enums/ItemEnum";
 import type Artist from "~/models/interfaces/Artist";
 import type Tag from "~/models/interfaces/Tag";
+import type ContentRatingEnum from "~/models/enums/ContentRatingEnum";
 
 export default interface Asset {
     id: number;
@@ -22,4 +23,5 @@ export default interface Asset {
     previewUrl?: string;
     size?: string;
     artist: Artist;
+    rating: ContentRatingEnum;
 }

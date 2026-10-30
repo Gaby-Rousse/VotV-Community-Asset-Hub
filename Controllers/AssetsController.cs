@@ -11,6 +11,7 @@ using VotVAssets.Models.Enums;
 using System.Net.Http.Headers;
 using Amazon.S3;
 using Amazon.S3.Model;
+using VotVAssets.Models.Queries;
 
 
 namespace VotVAssets.Controllers;
@@ -82,17 +83,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
     // GET: api/Assets
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet]
-    public async Task<ActionResult<object>> GetAssets(
-        ItemEnum? item = null,
-        int? type = null,
-        string? search = null,
-        SearchBy searchBy = SearchBy.Name,
-        string? tags = null,
-        SortBy sort = SortBy.Alphabetical,
-        bool reverse = false,
-        string? ownerId = null,
-        int page = 1)
+    public async Task<ActionResult<object>> GetAssets([FromQuery] GetAssetsQuery q)
     {
+
         const int assetsPerPage = 40;
 
         var query = context.Assets
@@ -100,53 +93,59 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             .Include(a => a.Tags)
             .AsQueryable();
 
-        if (item.HasValue)
-            query = query.Where(a => a.Item == item.Value);
+        if (q.Item.HasValue && q.Item.Value != ItemEnum.All)
+            query = query.Where(a => a.Item == q.Item.Value);
 
-        if (!string.IsNullOrWhiteSpace(search))
-            switch (searchBy)
+        if (!string.IsNullOrWhiteSpace(q.Search))
+            switch (q.SearchBy)
             {
                 case SearchBy.Name:
-                    query = query.Where(a => a.Name.Contains(search));
+                    query = query.Where(a => a.Name.Contains(q.Search));
                     break;
                 case SearchBy.Artist:
-                    query = query.Where(a => a.Artist!.Name.Contains(search));
+                    query = query.Where(a => a.Artist!.Name.Contains(q.Search));
                     break;
             }
 
 
-        if (!string.IsNullOrWhiteSpace(ownerId))
-            query = query.Where(a => a.OwnerId == ownerId);
+        if (!string.IsNullOrWhiteSpace(q.OwnerId))
+            query = query.Where(a => a.OwnerId == q.OwnerId);
 
-        if (type.HasValue && type != -1)
-            query = query.Where(a => (int?)a.Type == (int)type);
+        if (q.Type.HasValue && q.Type != -1)
+            query = query.Where(a => (int?)a.Type == (int)q.Type);
 
-        if (!string.IsNullOrWhiteSpace(tags))
+        if (!string.IsNullOrWhiteSpace(q.Tags))
         {
-            var tagList = tags.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            var tagList = q.Tags.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Select(t => t.ToLower().Trim())
                 .ToList();
             foreach (var tag in tagList)
                 query = query.Where(a => a.Tags.Any(t => t.Name == tag));
         }
 
-        switch (sort)
+        switch (q.Sort)
         {
             case SortBy.Date:
-                query = reverse ? query.OrderBy(a => a.CreatedAt) : query.OrderByDescending(a => a.CreatedAt);
+                query = q.Reverse ? query.OrderBy(a => a.CreatedAt) : query.OrderByDescending(a => a.CreatedAt);
                 break;
             case SortBy.Size:
-                query = reverse ? query.OrderBy(a => a.RawSize) : query.OrderByDescending(a => a.RawSize);
+                query = q.Reverse ? query.OrderBy(a => a.RawSize) : query.OrderByDescending(a => a.RawSize);
                 break;
             default:
-                query = reverse ? query.OrderByDescending(a => a.Name) : query.OrderBy(a => a.Name);
+                query = q.Reverse ? query.OrderByDescending(a => a.Name) : query.OrderBy(a => a.Name);
                 break;
         }
+
+        int gCount = await query.CountAsync(a => a.Rating == ContentRating.General);
+        int qCount = await query.CountAsync(a => a.Rating == ContentRating.Questionable);
+        int eCount = await query.CountAsync(a => a.Rating == ContentRating.Explicit);
+
+        query = query.Where(a => q.Ratings.Contains(a.Rating));
 
         var totalCount = await query.CountAsync();
 
         var assets = await query
-            .Skip((page - 1) * assetsPerPage)
+            .Skip((q.Page - 1) * assetsPerPage)
             .Take(assetsPerPage).Select(a => new {
                 a.Id,
                 a.Name,
@@ -155,16 +154,25 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                 a.Size,
                 a.CreatedAt,
                 ArtistName = a.Artist!.Name,
+                a.Item,
             })
             .ToListAsync();
+
+
 
         return Ok(new
         {
             data = assets,
             totalCount,
-            page,
+            q.Page,
             pageSize = assetsPerPage,
-            totalPages = (int)Math.Ceiling((double)totalCount / assetsPerPage)
+            totalPages = (int)Math.Ceiling((double)totalCount / assetsPerPage),
+            ratingsCount = new
+            {
+                g = gCount,
+                q = qCount,
+                e = eCount
+            }
         });
     }
 
@@ -232,6 +240,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             asset.Type,
             asset.Description,
             asset.Source,
+            asset.Rating,
             Artist = asset.Artist == null ? null : new {
                 asset.Artist.Id,
                 asset.Artist.Name,
@@ -285,6 +294,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         if (existingAsset == null) return NotFound();
         var (tagNames, tagError) = ParseTags(Request.Form);
         if (tagError != null) return BadRequest(new { error = tagError });
+        if (asset.Item == ItemEnum.All) return BadRequest("Pick a specific item type.");
 
         if (!User.IsInRole("Admin") && existingAsset.OwnerId != userManager.GetUserId(User))
         {
@@ -304,6 +314,9 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
 
             if (asset.Type != existingAsset.Type)
                 changes["type"] = asset.Type;
+
+            if (asset.Rating != existingAsset.Rating)
+                changes["rating"] = asset.Rating;
 
             var tempThumbnail = await fileService.HandleThumbnail(Request.Form.Files["thumbnail"], true);
             if (tempThumbnail != null)
@@ -482,6 +495,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         //tag validation + parsing
         var (tagNames, tagError) = ParseTags(Request.Form);
         if (tagError != null) return BadRequest(new { error = tagError });
+        if (asset.Item == ItemEnum.All) return BadRequest("Pick a specific item type.");
 
         var thumbnail = await fileService.HandleThumbnail(Request.Form.Files["thumbnail"]);
         if (thumbnail != null)

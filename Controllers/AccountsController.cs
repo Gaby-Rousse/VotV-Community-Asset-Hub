@@ -9,9 +9,6 @@ namespace VotVAssets.Controllers;
 [ApiController]
 public class AccountsController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager) : ControllerBase
 {
-
-
-
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromForm] RegisterModel model)
     {

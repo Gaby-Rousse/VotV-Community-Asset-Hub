@@ -1,5 +1,6 @@
 import TypeEnum from "~/models/enums/TypeEnum";
-import  ItemEnum from "~/models/enums/ItemEnum";
+import ItemEnum from "~/models/enums/ItemEnum";
+import ContentRatingEnum from "~/models/enums/ContentRatingEnum";
 
 
 export interface Filters {
@@ -12,6 +13,7 @@ export interface Filters {
     reverse: boolean;
     page: number;
     ownerId: string;
+    ratings: ContentRatingEnum[]
 }
 
 export enum SearchBy {
@@ -27,15 +29,16 @@ export enum SortBy {
 }
 
 export const defaultFilters: Filters = {
-    item: ItemEnum["3D Model"],
+    item: ItemEnum.All,
     type: TypeEnum.All,
     search: "",
     searchBy: SearchBy.Name,
     tags: [],
-    sort: SortBy.Alphabetical,
+    sort: SortBy.Date,
     reverse: false,
     page: 1,
     ownerId: "",
+    ratings: [ContentRatingEnum.General]
 }
 
 export const defaultTagFilters: Filters = {
@@ -48,4 +51,5 @@ export const defaultTagFilters: Filters = {
     reverse: false,
     page: 1,
     ownerId: "",
+    ratings: [ContentRatingEnum.General]
 }

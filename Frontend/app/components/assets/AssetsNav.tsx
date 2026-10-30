@@ -1,9 +1,11 @@
-import {Link} from "react-router";
+import {Link, useSearchParams} from "react-router";
 import TypeEnum from "~/models/enums/TypeEnum";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {useFilters} from "~/context/FiltersContext";
 import {Page} from "~/models/enums/Page";
 import {useAuth} from "~/context/AuthContext";
+import itemEnum from "~/models/enums/ItemEnum";
+import {useEffect, useState} from "react";
 
 const NAV_ITEMS: { label: string; item: ItemEnum }[] = [
     {label: "3D Models", item: ItemEnum["3D Model"]},
@@ -22,11 +24,12 @@ const PICTURE_TYPES = [
     {label: "Table",      type: TypeEnum.Table},
 ];
 
-export function Nav({toggleNavigating, isNavigating, page, setPage}: {
+export function Nav({toggleNavigating, isNavigating, page, setPage, assetFormOpen}: {
     toggleNavigating: () => void
     isNavigating: boolean
     page: Page
     setPage: (view: Page) => void
+    assetFormOpen: boolean
 }) {
     const {filters, setFilters} = useFilters();
     const {isAuthenticated, isAdmin} = useAuth();
@@ -42,12 +45,20 @@ export function Nav({toggleNavigating, isNavigating, page, setPage}: {
                     <ComputerButton text="Collections" selected={page === Page.Collections} onClick={() => setPage(Page.Collections)}/>
                 </div>
 
+                {isNavigating && (<div>
+                        <ComputerButton text="All" selected={filters.item === itemEnum.All && page === Page.Asset} onClick={() => {setPage(Page.Asset); setFilters(prev => ({...prev, item: ItemEnum.All, type: TypeEnum.All, page: 1}));}} />
+                    </div>
+                )}
+
                 {NAV_ITEMS.map(({label, item}) => (
                     <ComputerButton
                         key={label}
                         text={label}
-                        selected={filters.item === item && page === Page.Asset}
-                        onClick={() => { setPage(Page.Asset); setFilters(prev => ({...prev, item, type: TypeEnum.All})); }}
+                        selected={filters.item === item && (page === Page.Asset || assetFormOpen)}
+                        onClick={() => {
+                            if (!assetFormOpen) setPage(Page.Asset);
+                            setFilters(prev => ({...prev, item, type: TypeEnum.All}));
+                        }}
                     />
                 ))}
 

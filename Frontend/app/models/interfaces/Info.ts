@@ -2,6 +2,7 @@ export interface Info
 {
     totalCount: number;
     totalPages: number;
+    ratingsCount?: {g: number, q: number, e: number};
 }
 
 export const defaultInfo: Info = {

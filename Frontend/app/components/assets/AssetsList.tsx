@@ -5,11 +5,14 @@ import {useLoading} from "~/context/LoadingContext";
 import {apiCall, humanDate, selectAspectRatio} from "~/components/Functions";
 import AssetDetailModal from "~/components/assets/AssetDetailModal";
 import {useSearchParams} from "react-router";
-import {defaultFilters, type Filters, SearchBy, SortBy} from "~/models/interfaces/Filters";
+import {defaultFilters, SearchBy, SortBy} from "~/models/interfaces/Filters";
 import {defaultInfo, type Info} from "~/models/interfaces/Info";
 import {useFilters} from "~/context/FiltersContext";
-import {filtersToParams, paramsToFilters} from "~/helpers/filterParams";
+import {filtersToParams} from "~/helpers/filterParams";
 import SimpleBar from "simplebar-react";
+import ItemEnum from "~/models/enums/ItemEnum";
+import RatingCheckboxInput from "~/components/other/RatingCheckboxInput";
+import ContentRatingEnum from "~/models/enums/ContentRatingEnum";
 
 type TagSuggestion = { name: string, count: number };
 
@@ -34,6 +37,13 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    const [ratings, setRatings] = useState<ContentRatingEnum[]>([ContentRatingEnum.General])
+
+    useEffect(() => {
+        setFilters(prevState => ({...prevState, page: 1, ratings}))
+        const params = filtersToParams(filters);
+        setSearchParams(params, { replace: true });
+    }, [ratings]);
 
     useEffect(() => {
         const fromInput = tagQuery.trim().split(/\s+/).filter(Boolean);
@@ -60,7 +70,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
             apiCall(url, null).then(res => res.json())
                 .then(response => {
                     setAssets(response.data);
-                    setInfo({totalCount: response.totalCount, totalPages: response.totalPages});
+                    setInfo({totalCount: response.totalCount, totalPages: response.totalPages, ratingsCount: response.ratingsCount});
                     setTimeTaken(performance.now() - start);
                 })
                 .catch(err => console.error('Failed to fetch assets:', err))
@@ -177,9 +187,8 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                         <div onClick={() => updateAssetId(a.id)} className="flex hover:cursor-pointer flex-col"
                              key={a.id}>
                             <div className={`mx-auto ${selectAspectRatio({
-                                item: a.item,
-                                type: a.type
-                            })} border relative`}>
+                                type: filters.type
+                            })} border relative ${a.item == ItemEnum.Poster && "poster-bg"} `}>
                                 <img loading="lazy" className="absolute object-contain mx-auto w-full h-full"
                                      alt="thumbnail" src={a.thumbnailUrl ?? ""}/>
                                 <div className="absolute px-1 top-0 h-10 w-full flex items-center flex-col bg-black/50">
@@ -204,8 +213,10 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                                 <div onClick={() => updateAssetId(a.id)}
                                      className="flex w-full items-center url dos gap-4 hover:cursor-pointer"
                                      key={a.id}>
-                                    <img loading="lazy" className="size-8 shrink-0 object-contain"
-                                         src={a.thumbnailUrl}/>
+                                    <div className={`${a.item == ItemEnum.Poster && "poster-bg"} size-8`}>
+                                        <img loading="lazy" className="size-8 shrink-0 object-contain" src={a.thumbnailUrl}/>
+                                    </div>
+
                                     <div className="flex-1 min-w-0 truncate">{a.name}</div>
                                     <div className="w-30 md:w-40 lg:w-60 shrink-0 truncate">{a.artistName}</div>
                                     <div className="hidden md:flex w-25 shrink-0">{humanDate(a.createdAt ?? "")}</div>
@@ -218,11 +229,11 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
             </SimpleBar>
 
             <div
-                className={`dos border absolute z-10 transition-all bg-black left-0 ${menuOpened ? ("h-60") : ("h-8")} bottom-0 flex flex-col w-full`}>
+                className={`dos border absolute z-10 transition-all bg-black left-0 ${menuOpened ? ("h-70") : ("h-8")} bottom-0 flex flex-col w-full`}>
                 <div onClick={() => setMenuOpened(!menuOpened)}
                      className="flex flex-row h-8 w-full px-6 hover:cursor-pointer border-b items-center">
                     <div className="dos">{menuOpened ? ("▼") : ("▲")}</div>
-                    <div className="mx-auto dos">Menu</div>
+                    <div className="mx-auto dos">Advanced Search</div>
                     <div className="dos">{menuOpened ? ("▼") : ("▲")}</div>
                 </div>
                 {menuOpened && (<div className="p-2 flex gap-1 flex-col">
@@ -239,6 +250,10 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                         <button onClick={() => setDisplay(1)}
                                 className={`border ${display == 1 && ("selected")} w-28 p-1`}>List
                         </button>
+                    </div>
+                    <div className="flex gap-1 mt-1 flex-row">
+                        <div className="my-auto">Rating(s):</div>
+                        <RatingCheckboxInput setReaderValue={setRatings} ratingsCount={info.ratingsCount}/>
                     </div>
                     <div className="flex gap-1 mt-1 flex-row">
                         <div className="text-nowrap">Tags filter:</div>

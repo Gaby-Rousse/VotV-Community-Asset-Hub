@@ -17,7 +17,7 @@ namespace VotVAssets.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.22")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -259,7 +259,7 @@ namespace VotVAssets.Migrations
                     b.Property<string>("Pfp")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Socials")
+                    b.PrimitiveCollection<string>("Socials")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -303,6 +303,9 @@ namespace VotVAssets.Migrations
 
                     b.Property<string>("Preview")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
 
                     b.Property<long?>("RawSize")
                         .HasColumnType("bigint");

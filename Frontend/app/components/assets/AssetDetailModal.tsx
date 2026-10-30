@@ -7,6 +7,7 @@ import {apiCall, downloadFile, GenerateSocial} from "../Functions";
 import {Canvas} from "@react-three/fiber";
 import ItemEnum from "~/models/enums/ItemEnum";
 import {fetchAsset} from "~/api/assets";
+import ContentRatingEnum from "~/models/enums/ContentRatingEnum";
 
 export default function AssetDetailModal({id, setId, setIsNavigating, setSelectedAsset, setTrigger}: {
     id: number,
@@ -75,16 +76,20 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
         copyToClipBoard(url.toString());
     }
 
+    const ratings: Record<ContentRatingEnum, string> = {
+        [ContentRatingEnum.General]: "G",
+        [ContentRatingEnum.Questionable]: "Q",
+        [ContentRatingEnum.Explicit]: "E",
+    };
     return (
         <>
             <div className="fixed flex flex-col w-full h-full top-0 left-0 right-0 bottom-0 pb-8 bg-black/50 z-20 ">
 
                 <div className="flex flex-col mx-auto my-auto w-full h-full 2xl:w-2/3 2xl:h-4/5 bg-black border-2 xl:overflow-hidden">
                     <div className=" sticky top-0 z-10 bg-black flex shrink-0 w-full gap-2 h-12 border-b-2 flex-row">
+                        <div className={`text-dos flex h-full aspect-square text-xl border-r-2  justify-center items-center border-white text-white  ${asset?.rating == ContentRatingEnum.General ? "bg-(--active-green)" : asset?.rating == ContentRatingEnum.Questionable ? "bg-(--active-yellow)" : "bg-(--active-red)"}`} >{ratings[asset?.rating ?? ContentRatingEnum.General]}</div>
                         <div className="dos line-clamp-1 ml-2 text-2xl my-auto">{asset?.name}</div>
-                        <div>
-                            
-                        </div>
+
                         <div className="flex flex-row ml-auto">
                             <button onClick={() => shareLink()}
                                     className="dos shrink-0 border hover:cursor-pointer size-8  my-auto m-1"
@@ -132,7 +137,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                         </div>
                                     </div>
                                 ) :
-                                (<div>
+                                (<div className={`${asset?.item == ItemEnum.Poster && "poster-bg"}`}>
                                         <img className="xl:h-[40vh] h-[30vh]  w-full object-contain m-auto" src={asset?.thumbnailUrl}/>
                                     </div>
                                 )}
@@ -154,7 +159,7 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                     <div>Tags:</div>
                                     {asset?.tags && asset.tags.length > 0 ? asset.tags?.map((tag, index) => (
                                         <div key={index} className="border p-1 flex">
-                                            <div className="my-auto">•{tag}</div>
+                                            <div className="my-auto line-clamp-1 text-nowrap">•{tag}</div>
                                         </div>
                                     )) : ("Not tagged")}
                                 </div>

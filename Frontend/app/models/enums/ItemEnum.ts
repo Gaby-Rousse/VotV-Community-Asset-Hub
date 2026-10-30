@@ -1,11 +1,12 @@
 enum ItemEnum {
-    Rug = 0,
-    Picture = 1,
-    Flag = 2,
-    Sticker = 3,
-    Poster = 4,
-    "3D Model" = 5,
-    "ATV Skin" = 6
+    All = -1,
+    Rug,
+    Picture,
+    Flag,
+    Sticker,
+    Poster,
+    "3D Model",
+    "ATV Skin"
 }
 
 export default ItemEnum;

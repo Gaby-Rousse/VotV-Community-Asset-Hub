@@ -82,10 +82,8 @@ export function downloadFile(assetId: number) {
     window.location.href = `/api/assets/${assetId}/download`;
 }
 
-export function selectAspectRatio({item, type} : {item : number, type : number | undefined}) : string {
-    if(item == ItemEnum.Poster)
-        return "h-60 aspect-2/3"
-    if(item == ItemEnum.Picture)
+export function selectAspectRatio({type} : {type : number | undefined}) : string {
+    if(type != undefined)
     {
         if(type == TypeEnum.Horizontal)
             return "h-50 aspect-5/4"

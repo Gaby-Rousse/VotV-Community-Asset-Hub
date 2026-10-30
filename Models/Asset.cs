@@ -1,7 +1,9 @@
 namespace VotVAssets.Models;
+using Enums;
 
 public enum ItemEnum
 {
+    All = -1,
     Rug,
     Picture,
     Flag,
@@ -27,6 +29,7 @@ public class Asset : Timestamp
     public required string Name { get; set; }
     public required string Filename { get; set; }
     public required ItemEnum  Item { get; set; }
+    public required ContentRating Rating { get; set; } = ContentRating.General;
 
     public string? Description { get; set; }
     public string? Thumbnail { get; set; }

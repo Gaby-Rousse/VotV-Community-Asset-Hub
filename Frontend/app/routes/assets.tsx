@@ -20,28 +20,43 @@ import type Tag from "~/models/interfaces/Tag";
 import ListCollections from "~/components/tags/TagsList";
 import TagForm from "~/components/tags/TagForm";
 import {useSearchParams} from "react-router";
+const viewToPage: Record<string, Page> = {
+    assets: Page.Asset,
+    artists: Page.Artists,
+    collections: Page.Collections,
+    radio: Page.Radio,
+    tv: Page.TV,
+    admin: Page.Admin,
+};
+
+function pageToView(p: Page): string {
+    return Object.keys(viewToPage).find(key => viewToPage[key] === p) ?? "assets";
+}
 export default function Assets() {
-    const [searchParams] = useSearchParams();
-    const [page, setPage] = useState<Page>(
-        searchParams.get("view") === "collections" ? Page.Collections : Page.Asset
-    );
+    const [searchParams, setSearchParams] = useSearchParams();
+    const page = viewToPage[searchParams.get("view") ?? ""] ?? Page.Asset;
+
+
+    const setPage = (newPage: Page) => {
+        if (newPage === page) return;
+        if (newPage === Page.Asset) setFilters(prev => ({...prev, page: 1}));
+        const params = new URLSearchParams();
+        if (newPage !== Page.Asset) params.set("view", pageToView(newPage));
+        setSearchParams(params);
+    };
     const [isNavigating, setIsNavigating] = useState(true);
     const {filters, setFilters} = useFilters();
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
 
+    const assetFormOpen = !isNavigating && (page === Page.Asset || selectedAsset != null);
+
     const toggleNavigating = () => {
         setSelectedArtist(null);
         setSelectedAsset(null);
         setSelectedTag(null)
         setIsNavigating(!isNavigating);
-    };
-
-    const selectAsset = (asset: Asset | null) => {
-        setSelectedAsset(asset);
-        if (asset)
-            setFilters(prev => ({...prev, item: asset.item, type: TypeEnum.All}));
     };
 
     const renderContent = () => {
@@ -61,9 +76,9 @@ export default function Assets() {
 
         if (page === Page.Collections)
             return <ListCollections setSelectedTag={setSelectedTag}
-                                    setSelectedAsset={selectAsset}
+                                    setSelectedAsset={setSelectedAsset}
                                     setIsNavigating={setIsNavigating}/>;
-        return <ListAssets setIsNavigating={setIsNavigating} setSelectedAsset={selectAsset}/>;
+        return <ListAssets setIsNavigating={setIsNavigating} setSelectedAsset={setSelectedAsset}/>;
     };
 
     return (
@@ -73,6 +88,7 @@ export default function Assets() {
                 toggleNavigating={toggleNavigating}
                 page={page}
                 setPage={setPage}
+                assetFormOpen={assetFormOpen}
             />
             {renderContent()}
         </div>
