@@ -2,14 +2,15 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using VotVAssets.Models;
 using VotVAssets.Models.Enums;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace VotVAssets.Services;
 
-public class AssetUrlService(IAmazonS3 s3)
+public class AssetUrlService(IAmazonS3 s3, IMemoryCache cache)
 {
     public string ThumbnailUrl(Asset a)
     {
-        if (string.IsNullOrEmpty(a.Thumbnail)) return "/images/picture.png";
+        if (string.IsNullOrEmpty(a.Thumbnail)) return "https://cdn.votvbroadcast.com/public/assets/defaultPicture.png";
         if (a.Thumbnail.StartsWith("temp/"))
             return Build($"temp_uploads/thumbnails/{a.Thumbnail["temp/".Length..]}", false);
         return Build($"uploads/thumbnails/{a.Thumbnail}", IsExplicit(a));
@@ -27,13 +28,17 @@ public class AssetUrlService(IAmazonS3 s3)
         var key = $"VCAH/{path}";
         if (!isExplicit) return $"https://cdn.votvbroadcast.com/{key}";
 
-        return s3.GetPreSignedURL(new GetPreSignedUrlRequest
+        return cache.GetOrCreate(key, entry =>
         {
-            BucketName = "votv-vcah-explicit",
-            Key = key,
-            Verb = HttpVerb.GET,
-            Protocol = Protocol.HTTPS,
-            Expires = DateTime.UtcNow.AddHours(1)
-        });
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(50);
+            return s3.GetPreSignedURL(new GetPreSignedUrlRequest
+            {
+                BucketName = "vcah-explicit",
+                Key = key,
+                Verb = HttpVerb.GET,
+                Protocol = Protocol.HTTPS,
+                Expires = DateTime.UtcNow.AddHours(1)
+            });
+        })!;
     }
 }

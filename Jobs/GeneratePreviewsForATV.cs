@@ -31,7 +31,7 @@ public static class GeneratePreviewsForATV
         
             var outputPath = Path.Combine(destinationFolder, previewName);
         
-            var psi = new ProcessStartInfo("/opt/blender-5.0.1-linux-x64/blender",
+            var psi = new ProcessStartInfo("/opt/blender-5.3.0-linux-x64/blender",
                 $"--background \"{blendPath}\" --python \"{scriptPath}\" -- \"{texturePath}\" \"{outputPath}\"")
             {
                 RedirectStandardOutput = true,

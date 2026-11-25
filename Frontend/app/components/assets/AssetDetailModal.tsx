@@ -162,12 +162,16 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                                             </Suspense>
                                             <OrbitControls autoRotate/>
                                         </Canvas>
-                                        <div className="absolute gap-1 bottom-1 left-1 flex flex-row">
+                                        {asset.item == ItemEnum["ATV Skin"] ? (<div className="absolute gap-1 bottom-1 left-1 flex flex-row">
+                                            <img className="size-7" src="https://votvbroadcast.com/images/highLight.png"/>
+                                            <div className="dos my-auto ml-1">Baked light</div>
+                                        </div>) : ( <div className="absolute gap-1 bottom-1 left-1 flex flex-row">
                                             <img className="size-7" src="https://votvbroadcast.com/images/lowLight.png"/>
                                             <input value={lighting} onChange={(e) => setLighting(parseFloat(e.target.value))} step="0.1" min="0.0" max="10.0" className="my-auto slider" type="range"/>
                                             <img className="size-7" src="https://votvbroadcast.com/images/highLight.png"/>
                                             <div className="dos my-auto">{lighting}</div>
-                                        </div>
+                                        </div>)}
+
                                         <div className="absolute gap-1 bottom-1 right-1 flex flex-row">
                                             <label className="my-auto hover:cursor-pointer" htmlFor="bgColor"><img className="size-7 my-auto" src="https://votvbroadcast.com/images/paintbrush.png"/></label>
                                             <label htmlFor="bgColor" className="dos hover:cursor-pointer my-auto">BG</label>
@@ -186,9 +190,9 @@ export default function AssetDetailModal({id, setId, setIsNavigating, setSelecte
                             <div className="flex p-1 flex-1 border-b xl:border-b-0 xl:border-r 2xl:border-r-0 flex-col border-t min-h-0">
                                 <div className="dos shrink-0">Description:</div>
 
-                                <div className="dos overflow-y-auto flex-1 min-h-0">
+                                <pre className="dos overflow-y-auto whitespace-pre-wrap flex-1 min-h-0">
                                     {asset?.description ?? "No description available"}
-                                </div>
+                                </pre>
                                 <div className="flex max-h-6 gap-1 line-clamp-1 flex-row">
                                     <div className="dos shrink-0">Source:</div>
                                     <div className="dos overflow-y-auto ">   {asset?.source ?? "No source was provided"}</div>

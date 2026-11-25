@@ -32,9 +32,9 @@ export default function ShowArtist({id, setId}: { id: number, setId: (value: num
                     <div className="flex flex-1 flex-col p-1 min-h-0">
                         <div className="flex flex-col min-h-0 flex-1 mb-4">
                             <div className="dos shrink-0">Description:</div>
-                            <div className="dos overflow-y-auto">
+                            <pre className="dos overflow-y-auto whitespace-pre-wrap">
                                 {artist?.description}
-                            </div>
+                            </pre>
                         </div>
 
                         <div className="flex flex-col min-h-0 flex-1">

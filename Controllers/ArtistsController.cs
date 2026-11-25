@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -5,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VotVAssets.Models;
 using VotVAssets.Services;
+using Microsoft.AspNetCore.Http.Features;
+using VotVAssets.Extensions;
+using VotVAssets.Models.Enums;
 
 namespace VotVAssets.Controllers;
 
@@ -54,14 +58,14 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
         
         var totalCount = await query.CountAsync();
         
-        var assets = await query
+        var artists = await query
             .Skip((page - 1) * artistsPerPage)
             .Take(artistsPerPage)
             .ToListAsync();
         
         return Ok(new
         {
-            data = assets,
+            data = artists,
             totalCount,
             page,
             pageSize = artistsPerPage,
@@ -103,6 +107,32 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
         }
 
         return artist;
+    }
+
+    // GET: api/Artists/5
+    [HttpGet("{id}/ratingsCount")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<ActionResult<Artist>> GetArtistRatingsCount(long id)
+    {
+        var artist = await context.Artists.FindAsync(id);
+
+        if (artist == null) return NotFound();
+
+        var assets = await context.Assets.Where(a => a.ArtistId == artist.Id).ToListAsync();
+
+        int gCount = assets.Count(a => a.Rating == ContentRating.General);
+        int qCount = assets.Count(a => a.Rating == ContentRating.Questionable);
+        int eCount = assets.Count(a => a.Rating == ContentRating.Explicit);
+
+        return Ok(new
+        {
+            ratingsCount = new
+            {
+                g = gCount,
+                q = qCount,
+                e = eCount
+            }
+        });
     }
 
     // PUT: api/Artists/5
@@ -275,6 +305,51 @@ public class ArtistsController(IWebHostEnvironment environment, ApplicationDbCon
     private bool ArtistExists(long id)
     {
         return context.Artists.Any(e => e.Id == id);
+    }
+
+    // GET: api/Tags/5/download
+    [HttpGet("{id}/download")]
+    public async Task<IActionResult> DownloadArtist(int id, [FromQuery] ContentRating[]? ratings = null)
+    {
+        ratings ??= [ContentRating.General];
+        if (!User.CanSeeExplicit())
+            ratings = ratings.Where(r => r != ContentRating.Explicit).ToArray();
+
+        var rootPath = environment.ContentRootPath;
+        var uploadFolder = Path.Combine(rootPath, "wwwroot", "uploads", "files");
+
+        var artist = await context.Artists
+            .Where(a => a.Id == id)
+            .Select(a => new
+            {
+                a.Name,
+                Assets = a.Assets .Where(a => ratings.Contains(a.Rating))
+                    .Select(a => new { a.Id, a.Filename, FilePath = Path.Combine(uploadFolder, a.Filename) }).ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (artist is null || artist.Assets.Count == 0) return NotFound();
+
+        var bodyControl = HttpContext.Features.Get<IHttpBodyControlFeature>();
+        if (bodyControl != null) bodyControl.AllowSynchronousIO = true;
+
+        Response.ContentType = "application/zip";
+        Response.Headers.ContentDisposition = $"attachment; filename=\"{artist.Name}.zip\"";
+
+        using (var zip = new ZipArchive(Response.Body, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var a in artist.Assets)
+            {
+                if (!System.IO.File.Exists(a.FilePath)) continue;
+
+                var entry = zip.CreateEntry($"{a.Id}_{a.Filename}", CompressionLevel.Fastest);
+                await using var entryStream = entry.Open();
+                await using var file = System.IO.File.OpenRead(a.FilePath);
+                await file.CopyToAsync(entryStream);
+            }
+        }
+
+        return new EmptyResult();
     }
 
 

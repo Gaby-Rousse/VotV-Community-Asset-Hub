@@ -295,7 +295,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
     [Authorize]
     [HttpPut("{id}")]
-    public async Task<IActionResult> PutAsset(long id, [FromForm] Asset asset)
+    public async Task<IActionResult> PutAsset(long id, [FromForm] Asset asset, [FromForm] bool generateNewPreview = false)
     {
         if (id != asset.Id) return BadRequest();
 
@@ -435,7 +435,19 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
         context.Entry(asset).State = EntityState.Modified;
 
         asset.OwnerId = existingAsset.OwnerId;
-        asset.Filename = existingAsset.Filename;
+
+        var fileName = await fileService.HandleFile(Request.Form.Files["file"]);
+        if (fileName != null)
+        {
+            if (fileName == "INVALID_TYPE") return BadRequest(new { error = "Only images or archive files allowed." });
+            asset.Filename = fileName;
+            await fileService.DeleteFileAsync(Path.Combine("uploads", "files", existingAsset.Filename ?? ""));
+        }
+        else
+        {
+            asset.Filename = existingAsset.Filename;
+        }
+
         asset.CreatedAt = existingAsset.CreatedAt;
         asset.RawSize = existingAsset.RawSize;
 
@@ -476,7 +488,12 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
                     return BadRequest(new { error = "Only .glb files are allowed for the 3D preview" });
 
                 await fileService.DeleteFileAsync(Path.Combine("uploads", "previews", existingAsset.Preview ?? ""));
+                await fileService.HandleTurnTable(Path.Combine(preview));
                 asset.Preview = preview;
+            } else if (asset.Filename != existingAsset.Filename && generateNewPreview)
+            {
+                asset.Preview = await fileService.HandleModelPreview(asset.Filename);
+                await fileService.DeleteFileAsync(Path.Combine("uploads", "previews", existingAsset.Preview ?? ""));
             }
         }
 
@@ -548,6 +565,7 @@ public class AssetsController(FileService fileService, IWebHostEnvironment envir
             {
                 if (preview == "INVALID_TYPE")
                     return BadRequest(new { error = "Only .glb files are allowed for the 3D preview" });
+                await fileService.HandleTurnTable(preview);
                 asset.Preview = preview;
             }
             else

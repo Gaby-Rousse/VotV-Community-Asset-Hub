@@ -5,11 +5,13 @@ import {apiCall} from "~/components/Functions";
 import ItemEnum from "~/models/enums/ItemEnum";
 import ArtistDropdown from "~/components/artists/ArtistDropdown";
 import AdvancedFields from "~/components/other/AdvancedFields";
-import {useFloating, autoUpdate, offset, flip, size, hide, FloatingPortal} from "@floating-ui/react";
+import {autoUpdate, flip, FloatingPortal, hide, offset, size, useFloating} from "@floating-ui/react";
 import SimpleBar from "simplebar-react";
 import {useFilters} from "~/context/FiltersContext";
 import TypeEnum from "~/models/enums/TypeEnum";
 import RatingRadioInput from "~/components/other/RatingRadioInput";
+import ContentRatingEnum from "~/models/enums/ContentRatingEnum";
+import {useAuth} from "~/context/AuthContext";
 
 export default function AssetForm({item, asset, setIsNavigating}: {
     item: number,
@@ -21,14 +23,15 @@ export default function AssetForm({item, asset, setIsNavigating}: {
 
     const [ratio, setRatio] = useState("1/1")
     const [tags, setTags] = useState<string[]>(asset?.tags ?? []);
-    const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("/uploads/thumbnails/picture.png"))
+    const [preview, setPreview] = useState(asset?.thumbnailUrl != null ? (asset?.thumbnailUrl) : ("/picture.png"))
     const [artistId, setArtistId] = useState(asset?.artist.id ?? 0);
     const [selectedOption, setSelectedOption] = useState(asset?.type?.toString() ?? "1");
     const [error, setError] = useState("");
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
-
+    const [rating, setRating] = useState<ContentRatingEnum>(asset?.rating != null ? (asset?.rating) : ContentRatingEnum.General)
     const {filters, setFilters} = useFilters();
+    const {id, isAdmin} = useAuth();
 
     useEffect(() => {
         if (!asset) return;
@@ -140,6 +143,7 @@ export default function AssetForm({item, asset, setIsNavigating}: {
         formData.set("type", selectedOption);
         formData.set("item", item.toString());
         formData.set("filename", "willBeHandledByServer")
+        formData.set("rating", rating.toString())
 
         if (asset != null) {
             formData.set("id", asset.id.toString())
@@ -245,7 +249,7 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                         </div>
                         <div className="flex items-center h-12 flex-row gap-1">
                             <div className="dos"><b className="red dos mr-1">*</b>Rating:</div>
-                            <RatingRadioInput setReaderValue={() => {}} oldValue={asset?.rating}/>
+                            <RatingRadioInput setReaderValue={setRating} oldValue={asset?.rating}/>
                         </div>
 
                         {item == 1 ? (<div className="flex mb-1 items-center flex-row gap-3">
@@ -268,13 +272,24 @@ export default function AssetForm({item, asset, setIsNavigating}: {
                                placeholder="Source"
                                defaultValue={asset?.source}
                         />
-                        <div className="flex relative flex-row">
-                            {asset ? ("") : (<><b className="red absolute left-1 dos mr-1">*</b>
-                                <input name="file"
-                                       accept="image/*, .zip, .rar, .7zip, .7z"
-                                       className="w-full h-6 border dos text-center" type="file"
-                                /></>)}
-                        </div>
+                        {(!asset || asset.ownerId === id || isAdmin) && (
+                            <>
+                                {asset && <div className="dos">Overwrite file:</div>}
+                                <div className="flex relative flex-row">
+                                    {!asset && (
+                                        <b className="red absolute left-1 dos mr-1">*</b>
+                                    )}
+                                    <input
+                                        name="file"
+                                        type="file"
+                                        accept="image/*,.zip,.rar,.7z"
+                                        className="w-full h-6 border dos text-center"
+                                    />
+                                </div>
+                                {asset && asset.item == ItemEnum["3D Model"] && <div className="flex flex-row gap-1"><div className="dos">Autogenerate a preview with the new file?</div><input type="checkbox" name="generateNewPreview" value="true" /></div>}
+                            </>
+                        )}
+
                         {item == ItemEnum["3D Model"] ? (<>
                             <div className="dos">3D Preview:</div>
                             <hr className="mb-1"/>

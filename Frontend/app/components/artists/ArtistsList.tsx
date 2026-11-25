@@ -12,6 +12,7 @@ import {useFilters} from "~/context/FiltersContext";
 import {defaultFilters, SearchBy} from "~/models/interfaces/Filters";
 import {defaultInfo, type Info} from "~/models/interfaces/Info";
 import SimpleBar from "simplebar-react";
+import DownloadArtist from "~/components/artists/DownloadArtist";
 
 interface ArtistFilters {
     ownerId: string;
@@ -32,6 +33,7 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
     const [artists, setArtists] = useState<Artist[]>([]);
     const [artistId, setArtistId] = useState(parseInt(searchParams.get("artistId") ?? "0"));
     const [deleteArtist, setDeleteArtist] = useState(false);
+    const [downloadArtist, setDownloadArtist] = useState(false);
     const [trigger, setTrigger] = useState(0);
     const [info, setInfo] = useState<Info>(defaultInfo);
 
@@ -81,8 +83,10 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
         <>
             {artistId != 0 && (deleteArtist ? (
                 <DeleteArtist id={artistId} setId={setArtistId} setDeleteArtist={setDeleteArtist}
-                              setTrigger={setTrigger}/>) : (
+                              setTrigger={setTrigger}/>) : downloadArtist ? <DownloadArtist key={artistId} id={artistId} setId={setArtistId} setDownloadArtist={setDownloadArtist}></DownloadArtist> : (
                 <ShowArtist id={artistId} setId={setArtistId}/>))}
+
+
             <div className="flex flex-col min-h-0">
                 <div className="dos w-full purple text-center border-b">
                     Click on an artist to see their socials and a description about them
@@ -127,7 +131,7 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
                 <div className="flex mx-1 flex-row dos">
                     <div>Avatar</div>
                     <div className="ml-2">Name</div>
-                    <div className="ml-auto mr-4">Assets</div>
+                    <div className="ml-auto mr-4">Actions</div>
                 </div>
                 <SimpleBar className="min-h-0 flex-1">
                     <div className="flex flex-col">
@@ -135,8 +139,9 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
                             <div onClick={() => setArtistId(a.id)} key={a.id}
                                  className="flex flex-row gap-1 hover:cursor-pointer border-b">
                                 <img className="w-14 h-14 border-r shrink-0" src={a.pfpUrl} alt="Avatar"/>
-                                <div className="flex flex-col gap-3 min-w-0">
-                                    <div className="dos my-auto line-clamp-1">{a.name}</div>
+                                <div className="flex flex-col my-auto min-w-0">
+                                    <div className="dos line-clamp-1">{a.name}</div>
+                                    <div className="dos line-clamp-1">Assets: {a.assetCount}</div>
                                 </div>
                                 <div className="flex flex-row gap-1 shrink-0 ml-auto mr-1 my-auto">
                                     {isAuthenticated && (
@@ -147,7 +152,7 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
                                                 setIsNavigating(false);
                                             });
                                         }}
-                                                className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                                className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-1 py-1 border-2 flex flex-row gap-2">
                                             <img className="size-6" alt="Edit" src="https://votvbroadcast.com/images/pencil.png"/>
                                             <div className="hidden sm:flex">Edit</div>
                                         </button>
@@ -159,20 +164,32 @@ export default function ListArtists({setSelectedArtist, setIsNavigating, setPage
                                                 setArtistId(a.id);
                                                 setDeleteArtist(true);
                                             }}
-                                            className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-2 py-1 border-2 flex flex-row gap-2">
+                                            className="dos shrink-0 hover:cursor-pointer sm:pr-6 px-1 py-1 border-2 flex flex-row gap-2">
                                             <img className="size-6" alt="Delete" src="https://votvbroadcast.com/images/trash.png"/>
                                             <div className="hidden sm:flex">Delete</div>
                                         </button>
                                     )}
+                                    <button onClick={(e) => {
+                                        e.stopPropagation();
+                                        showArtistAssets(a);
+                                    }}
+                                         className="my-auto dos shrink-0 py-1 text-center border-2 p-1 flex flex-row">
+                                        <img className="size-6" src="https://cdn.votvbroadcast.com/public/assets/cursor.png" />
+                                        <div className="hidden md:flex">Browse...</div>
+
+                                    </button>
+                                    <button onClick={(e) => {
+                                        e.stopPropagation();
+                                        setArtistId(a.id);
+                                        setDownloadArtist(true);
+                                    }}
+                                         className="my-auto dos gap-1 shrink-0 py-1 text-center border-2 p-1 flex flex-row">
+                                        <img className="size-6" src="https://cdn.votvbroadcast.com/public/assets/download.png?v=2" />
+                                        <div className="hidden md:flex">Download All</div>
+                                    </button>
                                 </div>
 
-                                <div onClick={(e) => {
-                                    e.stopPropagation();
-                                    showArtistAssets(a);
-                                }}
-                                     className="my-auto dos py-1 mr-3 min-w-15 text-center border-2 p-2">
-                                    {a.assetCount}
-                                </div>
+
                             </div>
                         ))}
                     </div>

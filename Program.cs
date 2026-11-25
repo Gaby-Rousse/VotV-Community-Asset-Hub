@@ -9,6 +9,8 @@ using VotVAssets.Services;
 using System.Text.Json.Serialization;
 using Amazon.Runtime;
 using Amazon.S3;
+using System.Web;
+using Microsoft.Extensions.Primitives;
 
 //https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-10.0
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -92,6 +94,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<FileService>();
 builder.Services.AddSingleton<AssetUrlService>();
 
+builder.Services.AddMemoryCache();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -127,7 +131,7 @@ app.Use(async (ctx, next) =>
         ctx.Response.StatusCode = StatusCodes.Status404NotFound;
         return;
     }
-    await next();
+    await next(ctx);
 });
 
 app.UseStaticFiles(new StaticFileOptions
@@ -150,7 +154,117 @@ app.MapControllers();
 
 if (app.Environment.IsProduction())
 {
-    app.MapFallbackToFile("index.html");
+    var indexHtml = await File.ReadAllTextAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
+
+    app.MapFallback(async (HttpContext ctx, ApplicationDbContext db, AssetUrlService urls) =>
+    {
+        var urlParams = ctx.Request.Query;
+        var baseUrl = $"https://{ctx.Request.Host}";
+
+        string title = "VotV Community Asset Hub";
+        string description = "Browse VotV assets shared by the community!";
+        string image = $"https://cdn.votvbroadcast.com/public/assets/REPLACEME.png";
+        bool largeImage = false;
+
+        //generate new og from the params, only matter inside the assets page.
+        if (ctx.Request.Path.StartsWithSegments("/assets"))
+        {
+            if (!StringValues.IsNullOrEmpty(urlParams["assetId"]))
+            {
+                var asset = await db.Assets.Where(a => a.Id == long.Parse(urlParams["assetId"]!)).Include(a => a.Artist)
+                    .FirstOrDefaultAsync();
+                if (asset != null && asset.Rating != ContentRating.Explicit)
+                {
+                    title = asset.Name;
+                    description = $"By: {asset.Artist?.Name}";
+                    if (asset.Preview != null)
+                        image = $"https://cdn.votvbroadcast.com/VCAH/uploads/previews/{Path.ChangeExtension(asset.Preview, null) + "_TT.gif"}";
+                    else
+                        image = urls.ThumbnailUrl(asset);
+
+                    largeImage = true;
+                }
+            }
+
+            if (!StringValues.IsNullOrEmpty(urlParams["view"]))
+            {
+                if (!StringValues.IsNullOrEmpty(urlParams["artistId"]) && urlParams["view"].ToString() == "artists")
+                {
+                    var artist = await db.Artists.Where(a => a.Id == long.Parse(urlParams["artistId"]!)).FirstOrDefaultAsync();
+                    if (artist != null)
+                    {
+                        title = artist.Name;
+                        description = artist.Description ?? $"See {artist.Name} profile on VCAH.";
+                        image = artist.Pfp != null ? $"https://cdn.votvbroadcast.com/VCAH/uploads/avatars/{artist.Pfp}" : "https://cdn.votvbroadcast.com/VCAH/uploads/avatars/defaultPicture.png";
+                        largeImage = false;
+                    }
+                }
+
+                if (!StringValues.IsNullOrEmpty(urlParams["tagId"]) && urlParams["view"].ToString() == "collections")
+                {
+                    var tag = await db.Tags.Where(t => t.Id == long.Parse(urlParams["tagId"]!)).FirstOrDefaultAsync();
+                    if (tag != null)
+                    {
+                        title = tag.Name;
+                        description = tag.Description ?? $"Browse all assets tagged with {tag.Name}.";
+                        image = tag.Thumbnail != null ? $"https://cdn.votvbroadcast.com/VCAH/uploads/thumbnails/{tag.Thumbnail}" : "https://cdn.votvbroadcast.com/public/assets/defaultPicture.png";
+                        largeImage = false;
+                    }
+                }
+
+            }
+            else
+            {
+                if (!StringValues.IsNullOrEmpty(urlParams["search"]))
+                {
+                    if (!StringValues.IsNullOrEmpty(urlParams["searchBy"]))
+                    {
+                        SearchBy searchBy = (SearchBy)int.Parse(urlParams["searchBy"]!);
+                        if (searchBy == SearchBy.Artist)
+                        {
+                            var artist = await db.Artists.Where(a => a.Name == urlParams["search"].ToString()).FirstOrDefaultAsync();
+                            if (artist != null)
+                            {
+                                title = artist.Name;
+                                description = artist.Description ?? $"See assets made by {artist.Name}";
+                                image = artist.Pfp != null ? $"https://cdn.votvbroadcast.com/VCAH/uploads/avatars/{artist.Pfp}" : "https://cdn.votvbroadcast.com/VCAH/uploads/avatars/defaultPicture.png";
+                                largeImage = false;
+                            }
+                        }
+                        else
+                        {
+                            description = "what are you doing, if you see this your queries are weird. ";
+                        }
+                    }
+                    else
+                    {
+                        description = $"See assets with the following query: {urlParams["search"].ToString()}";
+                        image = "https://cdn.votvbroadcast.com/public/assets/magnifier.png";
+                        largeImage = false;
+                    }
+                }
+            }
+        }
+
+        var url = $"{baseUrl}{ctx.Request.Path}{ctx.Request.QueryString}";
+
+        var tags = $"""
+            <title>{HttpUtility.HtmlEncode(title)}</title>
+            <meta name="description" content="{HttpUtility.HtmlEncode(description)}">
+            <meta property="og:title" content="{HttpUtility.HtmlEncode(title)}">
+            <meta property="og:description" content="{HttpUtility.HtmlEncode(description)}">
+            <meta property="og:image" content="{HttpUtility.HtmlEncode(image)}">
+            <meta property="og:url" content="{HttpUtility.HtmlEncode(url)}">
+            <meta property="og:site_name" content="VotV Community Asset Hub">
+            <meta name="twitter:card" content="{(largeImage ? "summary_large_image" : "summary")}">
+            """;
+
+        var html = indexHtml.Replace("</head>", tags + "</head>");
+
+        ctx.Response.ContentType = "text/html; charset=utf-8";
+        ctx.Response.Headers.CacheControl = "no-cache";
+        await ctx.Response.WriteAsync(html);
+    });
 }
 
 
@@ -187,6 +301,30 @@ if (args.Contains("--move-explicit"))
         await files.SyncBucket(asset, false);
 
     Console.WriteLine($"Moved {explicitAssets.Count} assets.");
+    return;
+}
+
+if (args.Contains("--generate-TT"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var files = scope.ServiceProvider.GetRequiredService<FileService>();
+    int i = 0;
+
+    var assetsWithPreview = await db.Assets.Where(a => a.Preview != null).ToListAsync();
+    var count = assetsWithPreview.Count;
+
+    foreach (var asset in assetsWithPreview)
+    {
+        string preview = asset.Preview!;
+        var result = await files.HandleTurnTable(preview);
+        Console.WriteLine(result != null ? $"Generated turn table for {preview}." : $"FAILED: {preview}");
+        Console.WriteLine($"{i}/{count}");
+    }
+
+
+
+    Console.WriteLine($"Generated {count} GIF files.");
     return;
 }
 

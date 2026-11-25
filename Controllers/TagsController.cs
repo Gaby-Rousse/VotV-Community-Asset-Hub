@@ -123,7 +123,7 @@ public async Task<ActionResult> GetTags(
             {
                 t.Name,
                 Assets = t.Assets .Where(a => ratings.Contains(a.Rating))
-                    .Select(a => new { a.Id, a.Filename, FilePath = Path.Combine(uploadFolder, a.Filename) }).ToList() // adapt to your model
+                    .Select(a => new { a.Id, a.Filename, FilePath = Path.Combine(uploadFolder, a.Filename) }).ToList()
             })
             .FirstOrDefaultAsync();
 

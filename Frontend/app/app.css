@@ -191,10 +191,6 @@ button:hover
     inset: 0;
 }
 
-.simplebar-content:hover {
-    cursor: pointer;
-}
-
 .poster-bg {
     background-image: url("https://cdn.votvbroadcast.com/public/assets/concrete_bg.webp");
     background-size: cover;

@@ -159,9 +159,9 @@ export default function TagDetailModal({id, setId, assetId, setAssetId, setIsNav
                     <div className="shrink-0 z-10 border-t">
                         <div className="flex flex-col p-1 h-24 border-b">
                             <div className="dos shrink-0">Description:</div>
-                            <div className="dos overflow-y-auto flex-1 min-h-0">
+                            <pre className="dos whitespace-pre-wrap overflow-y-auto flex-1 min-h-0">
                                 {tag?.description ?? "No description available"}
-                            </div>
+                            </pre>
                         </div>
                         <div className="flex flex-row gap-1 py-2 mx-auto w-fit sm:w-auto sm:justify-end sm:pr-1">
                             {isAuthenticated && isAdmin && (

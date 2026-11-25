@@ -6,7 +6,7 @@ public class Tag
     public required string Name { get; set; }
     public string? Thumbnail { get; set; }
     public string ThumbnailUrl => string.IsNullOrEmpty(Thumbnail)
-        ? "/uploads/thumbnails/picture.png"
+        ? "/picture.png"
         : $"https://cdn.votvbroadcast.com/VCAH/uploads/thumbnails/{Thumbnail}";
 
     public string? Description { get; set; }

@@ -182,7 +182,7 @@ export default function ListAssets({setIsNavigating, setSelectedAsset}: {
                                 type: filters.type
                             })} border relative ${a.item == ItemEnum.Poster && "poster-bg"} `}>
                                 <img loading="lazy" className="absolute object-contain mx-auto w-full h-full"
-                                     alt="thumbnail" src={a.thumbnailUrl ?? ""}/>
+                                     alt="thumbnail" src={a.thumbnailUrl}/>
                                 <div className="absolute px-1 top-0 h-10 w-full flex items-center flex-col bg-black/50">
                                     <div className="dos line-clamp-1 my-auto text-center">{a.name}</div>
                                 </div>

@@ -36,6 +36,9 @@ export function Layout({children}: { children: React.ReactNode }) {
             <Links/>
         </head>
         <body>
+        <div className="flex flex-row fixed w-full h-full top-0 right-0 z-20 pointer-events-none">
+            <div className="mt-auto mb-auto w-full gap-1 flex flex-col items-end pl-2" id="popups"></div>
+        </div>
         {children}
         <ScrollRestoration/>
         <Scripts/>

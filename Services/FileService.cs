@@ -5,8 +5,8 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Formats.Webp;
 using System.Diagnostics;
-using Aspose.Zip;
-using Aspose.Zip.ArchiveInfo;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 using Microsoft.AspNetCore.StaticFiles;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -67,6 +67,14 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
     {
         if (string.IsNullOrEmpty(Path.GetFileName(key))) return;
 
+        await DeleteSingleFile(key);
+
+        if (key.Contains("previews") && key.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
+            await DeleteSingleFile(Path.ChangeExtension(key, null) + "_TT.gif");
+    }
+
+    private async Task DeleteSingleFile(string key)
+    {
         var local = Path.Combine(environment.ContentRootPath, "wwwroot", key);
         if (File.Exists(local)) File.Delete(local);
 
@@ -83,7 +91,8 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         [
             $"uploads/files/{asset.Filename}",
             $"uploads/thumbnails/{asset.Thumbnail}",
-            $"uploads/previews/{asset.Preview}"
+            $"uploads/previews/{asset.Preview}",
+            $"uploads/previews/{Path.GetFileNameWithoutExtension(asset.Preview)}_TT.gif"
         ];
 
         foreach (var key in keys)
@@ -98,6 +107,19 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
 
     public async Task PromoteTempAsync(string folder, string fileName)
     {
+        await PromoteSingle(folder, fileName);
+
+        if (folder == "previews")
+        {
+            var gifName = Path.GetFileNameWithoutExtension(fileName) + "_TT.gif";
+            var gifLocal = Path.Combine(environment.ContentRootPath, "wwwroot", "temp_uploads", folder, gifName);
+            if (File.Exists(gifLocal))
+                await PromoteSingle(folder, gifName);
+        }
+    }
+
+    private async Task PromoteSingle(string folder, string fileName)
+    {
         var root = Path.Combine(environment.ContentRootPath, "wwwroot");
         var tempKey = $"temp_uploads/{folder}/{fileName}";
         var finalKey = $"uploads/{folder}/{fileName}";
@@ -107,15 +129,11 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         await DeleteObject(tempKey, false);
     }
 
-    //List from here: https://docs.aspose.net/zip/developer-guide/universal-extractor/
-    Dictionary<ArchiveFormat,string> supportedFormats = new()
+    private static readonly Dictionary<ArchiveType, string> supportedFormats = new()
     {
-        [ArchiveFormat.Zip] = ".zip",
-        [ArchiveFormat.Rar] = ".rar",
-        [ArchiveFormat.SevenZip] = ".7z",
-        [ArchiveFormat.Tar] = ".tar",
-        [ArchiveFormat.Gzip] = ".gz",
-        [ArchiveFormat.Bzip2] = ".bz2"
+        { ArchiveType.Zip,      ".zip" },
+        { ArchiveType.Rar,      ".rar" },
+        { ArchiveType.SevenZip, ".7z"  },
     };
 
     private static readonly FileExtensionContentTypeProvider ContentTypes = new();
@@ -204,12 +222,8 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
 
         var outputPath = Path.Combine(destinationFolder, previewName);
 
-        var psi = new ProcessStartInfo("/opt/blender-5.0.1-linux-x64/blender",
-            $"--background \"{blendPath}\" --python \"{scriptPath}\" -- \"{texturePath}\" \"{outputPath}\"")
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError  = true
-        };
+        var psi = new ProcessStartInfo("/opt/blender-5.3.0-linux-x64/blender",
+            $"--background \"{blendPath}\" --python \"{scriptPath}\" -- \"{texturePath}\" \"{outputPath}\"");
 
         using var proc = Process.Start(psi)!;
         await proc.WaitForExitAsync();
@@ -218,6 +232,8 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
 
         string r2Path = Path.Combine(keyFolder, previewName);
         await PutObject(outputPath, r2Path);
+
+        await HandleTurnTable(previewName, temp);
 
         return previewName;
     }
@@ -243,7 +259,7 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         }
         finally
         {
-            try { await DeleteFileAsync(tempPath); } catch { /* idc */ }
+            try { File.Delete(tempPath); } catch { /* idc */ }
         }
     }
 
@@ -256,52 +272,47 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         var zipPath = Path.Combine(rootPath, "wwwroot", "uploads", "files", zipFilename);
         if (!System.IO.File.Exists(zipPath)) return null;
 
-        ArchiveFormatInfo AII = ArchiveInstanceInfo.GetArchiveFormatInfo(zipPath);
-        if(AII == null) return null;
-
-        if (!supportedFormats.ContainsKey(AII.Format))
-            return null;
-
         var extractFolder = Path.Combine(rootPath, "wwwroot", "temp_uploads",
             $"model_{Path.GetFileNameWithoutExtension(zipFilename)}");
 
         try
         {
             if (Directory.Exists(extractFolder)) Directory.Delete(extractFolder, true);
+            Directory.CreateDirectory(extractFolder);
 
-            using (IArchive archive = ArchiveFactory.GetArchive(zipPath))
+            IArchive archive;
+            try
             {
-                archive.ExtractToDirectory(extractFolder);
+                archive = ArchiveFactory.OpenArchive(zipPath);
+            }
+            catch
+            {
+                return null; // archive not supported I guess.
             }
 
+            using (archive)
+            {
+                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                {
+                    entry.WriteToDirectory(extractFolder, new ExtractionOptions
+                    {
+                        ExtractFullPath = true,
+                        Overwrite = true
+                    });
+                }
+            }
             var objPath = Directory
                 .EnumerateFiles(extractFolder, "*.obj", SearchOption.AllDirectories)
                 .FirstOrDefault();
             if (objPath == null) return null;
-
-            // Prefer the diffuse/albedo texture; skip icons; otherwise fall back to any .png.
-            var pngs = Directory
-                .EnumerateFiles(extractFolder, "*.png", SearchOption.AllDirectories)
-                .ToList();
-
-            var texturePath = pngs.FirstOrDefault(p =>
-                                  Path.GetFileName(p).Contains("diffuse", StringComparison.OrdinalIgnoreCase))
-                              ?? pngs.FirstOrDefault(p =>
-                                  !Path.GetFileName(p).Contains("icon", StringComparison.OrdinalIgnoreCase))
-                              ?? pngs.FirstOrDefault();
-            if (texturePath == null) return null;
 
             string previewName = $"{Guid.NewGuid()}.glb";
             var keyFolder = Path.Combine("uploads", "previews");
             var outputPath = Path.Combine(rootPath, "wwwroot", keyFolder, previewName);
             var scriptPath = Path.Combine(rootPath, "blender", "model.py");
 
-            var psi = new ProcessStartInfo("/opt/blender-5.0.1-linux-x64/blender",
-                $"--background --factory-startup --python \"{scriptPath}\" -- \"{objPath}\" \"{texturePath}\" \"{outputPath}\"")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
+            var psi = new ProcessStartInfo("/opt/blender-5.3.0-linux-x64/blender",
+                $"--background --factory-startup --python \"{scriptPath}\" -- \"{extractFolder}\" \"{outputPath}\"");
 
             using var proc = Process.Start(psi)!;
             await proc.WaitForExitAsync();
@@ -310,6 +321,8 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
 
             string r2Path = Path.Combine(keyFolder, previewName);
             await PutObject(outputPath, r2Path);
+
+            await HandleTurnTable(previewName);
 
             return previewName;
         }
@@ -321,6 +334,27 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
         {
             if (Directory.Exists(extractFolder)) Directory.Delete(extractFolder, true);
         }
+    }
+
+    public async Task<string?> HandleTurnTable(string fileName, bool temp = false)
+    {
+        var rootPath = environment.ContentRootPath;
+        var scriptPath = Path.Combine(rootPath, "blender", "3DModelTurntableMaker_2.4.py");
+        var keyFolder = Path.Combine(temp ? "temp_uploads" : "uploads", "previews");
+        var modelPath = Path.Combine(rootPath, "wwwroot", keyFolder, fileName);
+        var gifPath = Path.ChangeExtension(modelPath, null) + "_TT.gif";
+
+        var psi = new ProcessStartInfo("python3", $"\"{scriptPath}\" \"{modelPath}\"");
+
+        using var proc = Process.Start(psi)!;
+        await proc.WaitForExitAsync();
+
+        if (proc.ExitCode != 0 || !System.IO.File.Exists(gifPath)) return null;
+
+        string gifName = Path.GetFileName(gifPath);
+        string r2Path = Path.Combine(keyFolder, gifName);
+        await PutObject(gifPath, r2Path);
+        return gifName;
     }
 
 
@@ -358,13 +392,22 @@ public class FileService(IWebHostEnvironment environment, IAmazonS3 s3Client)
             }
         }
 
-        ArchiveFormatInfo AII = ArchiveInstanceInfo.GetArchiveFormatInfo(file.OpenReadStream());
-        if(AII == null)
-            return "INVALID_TYPE"; //fishy
-        if (!supportedFormats.ContainsKey(AII.Format))
+        ArchiveType type;
+        try
+        {
+            using var stream = file.OpenReadStream();
+            using var archive = ArchiveFactory.OpenArchive(stream);
+            type = archive.Type;
+        }
+        catch
+        {
+            return "INVALID_TYPE"; // archive doesn't work idk
+        }
+
+        if (!supportedFormats.TryGetValue(type, out var extension))
             return "INVALID_TYPE";
 
-        fileName += supportedFormats.GetValueOrDefault(AII.Format);
+        fileName += extension;
         var fullPath2 = Path.Combine(uploadFolder, fileName);
         await using (var stream = new FileStream(fullPath2, FileMode.Create))
         {
